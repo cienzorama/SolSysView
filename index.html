@@ -6,7 +6,7 @@
 
 		  <link rel="icon" type="image/vnd.microsoft.icon" href="favicon.ico">
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-        <title>SolSys View v0.322 03a 21/04/2022</title>
+        <title>SolSys View v0.400 05j 02/07/2023</title>
 
         <style>
             html, body {
@@ -59,7 +59,7 @@
 		  
 
 		  <!--- Base de datos de figura de las constelaciones --->
-		  <script src="js/stars_db.js"></script>
+		  <script src="/js/stars_db.js"></script>
 		
 
     </head>
@@ -130,6 +130,16 @@
 		  //
 		  */
 
+
+		   /*		  
+		  fecha[0]=8;
+		  fecha[1]=11;
+		  fecha[2]=2022;
+		  fecha[3]=8;
+		  fecha[4]=03;
+		   */
+
+
 		  alt_az_lock=1;
 		 
 		  control0=0;
@@ -178,7 +188,7 @@
 		  i_ua_km=1.0/ua_km;
  
 		  //Radios promedios de los objetos y su achatamiento polar
-		  planet_rad=[695700,2439.7,6051.8,6371,1738.1,3396.2,71492.0,60268.0,25559.0,24764.0,1188.3,11,7.5,1821,1560,2634,2410,531,252,531,561,763,2574,135,734,106,89,578.9,589.7,788.4,761.4,235.8,2707,340,418,606];
+		  planet_rad=[696342,2439.7,6051.8,6371,1737.4,3396.2,71492.0,60268.0,25559.0,24764.0,1188.3,11,7.5,1821,1560,2634,2410,531,252,531,561,763,2574,135,734,106,89,578.9,589.7,788.4,761.4,235.8,2707,340,418,606];
 		  planet_flat=[0,0,0,3.35e-3,0.0012,0.00589,0.06487,0.09796,0.0229,0.0171,0.005,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 		  planet_pos=new Array(n_objetos);
 		  calc_all_planets(jd);
@@ -827,7 +837,7 @@
 
 					//Texto de datos del porgrama
 					var personal_data_text = new BABYLON.GUI.TextBlock();
-					personal_data_text.text = "SolSyS View v0.322 03a\n © cienzorama@gmail.com, 2022";
+					personal_data_text.text = "SolSyS View v0.400 05j\n © cienzorama@gmail.com, 2023";
 					personal_data_text.color = "white";
 					personal_data_text.fontSize = 10;
 					personal_data_text.top="20px";
@@ -4450,11 +4460,14 @@
 			
 		  function corrige_baricentro() {
 
+			 return;
+
 			  //Earth-Moon
 			  var Me=5.972e24;
 			  var Mm=7.347e22;
 			  var Mt=Me+Mm;
 		     var iMt=1.0/Mt;
+
 
 			  var cmx=(planet_pos[3].x*Me + planet_pos[4].x*Mm)*iMt;
 			  var cmy=(planet_pos[3].y*Me + planet_pos[4].y*Mm)*iMt;
@@ -4464,10 +4477,10 @@
 			  var dy=planet_pos[3].y-cmy;
 			  var dz=planet_pos[3].z-cmz;
 
-			  var p3= new BABYLON.Vector3(planet_pos[3].x+dx,planet_pos[3].y+dy,planet_pos[3].z+dz);
+			  var p3= new BABYLON.Vector3(planet_pos[3].x-dx,planet_pos[3].y-dy,planet_pos[3].z-dz);
 			  var p4= new BABYLON.Vector3(planet_pos[4].x+dx,planet_pos[4].y+dy,planet_pos[4].z+dz);
 	
-			  planet_pos[3]=p3;
+			  //planet_pos[3]=p3;
 			  planet_pos[4]=p4;
 
 			  //Pluto-Charon
@@ -4614,10 +4627,11 @@
 							//console.log(oi,oj);
 
 							nn=10;
-							h_sombra=1.02*0+1.02;
-							if (oi==4 && oj==3) nn=50.0;
-							if (oi==3 && oj==4) nn=100.0;
-							if (oj==4) h_sombra=1.05;
+							h_sombra=1.02*0+1.01;
+							if (oi==4 && oj==3) nn=200.0;
+							if (oi==3 && oj==4) nn=200.0;
+							if (oj==4) h_sombra=1.01;
+
 
 							lines_umbra_pos[cnt]=new BABYLON.Vector3(NaN,NaN,NaN);
 							cnt++;
@@ -5261,6 +5275,101 @@
 		  }
 
 
+		  function calc_dynamic_time(year) {
+
+		  		var t,u,y,DT;
+
+				y=year;
+
+				if (y<=-500) {
+					u = (year-1820)/100.0;
+					DT = -20 + 32 * u*u;
+				}
+
+				if (y>=-500 && y<=500) {
+					u = y/100;
+					DT = 10583.6 - 1014.41 * u + 33.78311 * u*u - 5.952053 * u*u*u
+						- 0.1798452 * u*u*u*u + 0.022174192 * u*u*u*u*u + 0.0090316521 * u*u*u*u*u*u;
+				}
+
+				if (y>=500 && y<=1600) {
+					u = (y-1000)/100;
+					DT = 1574.2 - 556.01 * u + 71.23472 * u*u + 0.319781 * u*u*u
+						- 0.8503463 * u*u*u*u - 0.005050998 * u*u*u*u*u + 0.0083572073 * u*u*u*u*u*u;
+				}
+
+				if (y>=1600 && y<=1700) {
+					t = y - 1600;
+					DT = 120 - 0.9808 * t - 0.01532 * t*t + t*t*t / 7129.0;
+				}
+
+				if (y>=1700 && y<=1800) {
+					t = y - 1700;
+					DT = 8.83 + 0.1603 * t - 0.0059285 * t*t + 0.00013336 * t*t*t - t*t*t*t / 1174000.0;
+				}
+
+				if (y>=1800 && y<=1860) {
+					t = y - 1800;
+					DT = 13.72 - 0.332447 * t + 0.0068612 * t*t + 0.0041116 * t*t*t - 0.00037436 * t*t*t*t
+						+ 0.0000121272 * t*t*t*t*t - 0.0000001699 * t*t*t*t*t*t + 0.000000000875 * t*t*t*t*t*t*t;
+				}
+
+				if (y>=1860 && y<=1900) {
+					t = y - 1860;
+					DT = 7.62 + 0.5737 * t - 0.251754 * t*t + 0.01680668 * t*t*t
+						-0.0004473624 * t*t*t*t + t*t*t*t*t / 233174.0;
+				}
+
+				if (y>=1900 && y<=1920) {
+					t = y - 1900;
+					DT = -2.79 + 1.494119 * t - 0.0598939 * t*t + 0.0061966 * t*t*t - 0.000197 * t*t*t*t;
+				}
+
+				if (y>=1920 && y<=1941) {
+					t = y - 1920;
+					DT = 21.20 + 0.84493*t - 0.076100 * t*t + 0.0020936 * t*t*t;
+				}
+
+				if (y>=1941 && y<=1961) {
+					t = y - 1950;
+					DT = 29.07 + 0.407*t - t*t/233.0 + t*t*t / 2547.0;
+				}
+
+				if (y>=1961 && y<=1986) {
+					t = y - 1975;
+					DT = 45.45 + 1.067*t - t*t/260.0 - t*t*t / 718.0;
+				}
+
+				if (y>=1986 && y<=2005) {
+					t = y - 2000;
+					DT = 63.86 + 0.3345 * t - 0.060374 * t*t + 0.0017275 * t*t*t + 0.000651814 * t*t*t*t;
+						+ 0.00002373599 * t*t*t*t*t;
+				}
+
+				if (y>=2005 && y<=2050) {
+					t = y - 2000;
+					DT = 62.92 + 0.32217 * t + 0.005589 * t*t;
+				}
+
+				if (y>=2050 && y<=2150) {
+					DT = -20 + 32 * ((y-1820.0)/100.0)*((y-1820.0)/100.0) - 0.5628 * (2150 - y);
+				}
+
+				if (y>=2150) {
+					u = (year-1820)/100.0;
+					DT = -20 + 32 * u*u;
+				}
+
+
+				//DT=0; 
+				//console.log(DT);
+
+				return DT;
+
+		  }
+
+
+
 		  //Obtiene el dia juliano (de efemerides)
 		  //a partir de la fecha y la hora		
 		  function calc_jd(fecha) {
@@ -5283,12 +5392,17 @@
 				var dia1=dia+hora/24.0+(minuto + segundo/60.0)/1440.0;
 				var jd=Math.floor(365.25*(ano+4716))+Math.floor(30.6001*(mes+1))+dia1+b-1524.5;
 
+
+				var DT=calc_dynamic_time(ano+mes/12);
+
+				jd=jd+DT/86400.0;
+
 				return jd;
 
 			};
 
 			//Obtiene la fecha y la hora
-			//partiendo del dia juliano
+			//partiendo del dia juliano 
 			function calc_fecha(jd) {
 
 				var jd1=0.5+jd;
@@ -5316,6 +5430,36 @@
 				} else {
 					ano=c-4715;
 				}
+
+				var DT=calc_dynamic_time(ano+mes/12);
+
+
+				jd1=0.5+jd-DT/86400.0;
+				z=Math.floor(jd1);
+				f=jd1-z;
+				alfa=Math.floor((z-1867216.25)/36524.25);
+				a=z+1+alfa-Math.floor(alfa/4.0);
+				b=a+1524;
+				c=Math.floor((b-122.1)/365.25);
+				d=Math.floor(365.25*c);
+				e=Math.floor((b-d)/30.6001);
+
+				dia=b-d-Math.floor(30.6001*e)+f;
+				mes=0;
+				ano=0;
+
+				if (e<14) {
+					mes=e-1;
+				} else {
+					mes=e-13;
+				}
+
+				if (mes>2) {
+					ano=c-4716;
+				} else {
+					ano=c-4715;
+				}
+
 
 				var hora=(dia-Math.floor(dia))*24;
 				var minuto=(hora-Math.floor(hora))*60;
@@ -5515,6 +5659,17 @@
 
 					//}
 
+					/*
+					var N_s1=0;
+					var L=100.466457 + 36000.7698278*T0 + 0.00030322*T02 + 0.000000020*T03;
+					var a_s1=1.000001018;
+					var e_s1=0.01670863 - 0.000042037*T0 - 0.0000001267*T02 + 0.00000000014*T03;
+					var i_s1=0;
+					var pis=102.937348 + 1.7195366*T0 + 0.00045688*T02 - 0.000000018*T03;
+					
+					var M_s1=L-pis;
+					var w_s1=pis-N_s1;
+					*/
 
 					N_s1=N_s1*dtor;
 					i_s1=i_s1*dtor;
@@ -5710,7 +5865,7 @@
 						var D= 297.8501921 + t*445267.1114034 - t2*0.0018819 + t3*1.0/545868.0 - t4*1.0/(1.13065e8);D=D*dtor;
 						var M = 357.5291092 + t*35999.0502909 - t2*0.0001536 + t3*1.0/(2.449e7);M = M*dtor;
 						var Mprime = 134.9633964 + t*477198.8675055 + t*t*0.0087414 + t*t*t*1.0/(6.9699e4) - t4*1.0/(1.4712e7);Mprime = Mprime*dtor;
-						var F = 93.2720950 + t*483202.0175233 - t2*0.0036539 - t3*1.0/(3.526e7) + t4*1.0/(8.6331e8);F = F*dtor;
+						var F = 93.2720950 + t*483202.0175233 - t2*0.0036539 - t3*1.0/(3.526e7*0+3526000) + t4*1.0/(8.6331e8);F = F*dtor;
 						
 
 
@@ -5763,6 +5918,18 @@
 						latecl_p=(dlat/(1e6))*dtor;
 						r_p=(385000.56+drad/(1e3))/149597870.691;
 
+
+
+						var nut_L=(280.4665+36000.7698*t)*dtor;
+						var nut_Lp=(218.3165+481267.8813*t)*dtor;
+						var nut_omega=(125.04452-1934.136261*t+0.0020708*t*t+t*t*t/450000)*dtor;
+						var nut_delta_phi=(-17.20*Math.sin(nut_omega)-1.32*Math.sin(2*nut_L)
+												-0.23*Math.sin(nut_Lp)+0.21*Math.sin(2*nut_omega))/3600.0*dtor;
+			 			/*var nut_delta_ecl=(9.2*Math.cos(nut_omega)+0.57*Math.cos(2*nut_L)
+												+0.1*Math.cos(2*nut_Lp)-0.09*Math.cos(2*nut_omega))/3600.0*dtor;*/
+
+
+						lonecl_p=lonecl_p-nut_delta_phi;
 						ss=1;
 
 
@@ -7068,13 +7235,12 @@
 				ra0[3]=0-0.641*t1;dec0[3]=90.0-0.557*t1;w0[3]=190.147-360.9856235*d;w0[3]=gst;
 				if (dec0[3]>90) dec0[3]=90+(90-dec0[3]);
 
-				//Luna
+				//Luna - Errores de libración corregidos - 01/07/2023
 				ra0[4]=0;dec0[4]=0;w0[4]=0;
 
 				var E1,E2,E3,E4,E5,E6,E7,E8,E9,E10;
 				var E11,E12,E13;
 
-				//Test de comprobación de la Libración
 				dn=d*1;
 				E1 = 125.045- 0.0529921*dn;E1=E1*dtor;
 				E2 = 250.089- 0.1059842*dn;E2=E2*dtor;
@@ -7111,12 +7277,12 @@
 				+0.1208*sin_E2 -0.0642*sin_E3 +0.0158*sin_E4
 				+0.0252*Math.sin(E5) -0.0066*sin_E6 -0.0047*Math.sin(E7)
 				-0.0046*Math.sin(E8) +0.0028*Math.sin(E9) +0.0052*sin_E10
-				+0.0040*Math.sin(E11)+0.0019*Math.sin(E12)-0.0044*sin_E13)-125.1228;
+				+0.0040*Math.sin(E11)+0.0019*Math.sin(E12)-0.0044*sin_E13);
 
 
 				//b[4].w0+= 0.00014410*d*360.0+0.0012320*d-125;
 
-				//w0[4]+=-(125.1228 - 0.0529538083 * d); //precesion nodal de la luna
+				w0[4]+=-(125.1228 - 0.0529538083 * d); //precesion nodal de la luna
 				
 				//
 
