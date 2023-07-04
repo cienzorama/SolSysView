@@ -3,7 +3,16 @@ Interactive visualization of the Solar System using babylon.js
 
 SolSys View is a Solar System visualization program, as its name says, but it's also an astronomical calculator for events related to the Solar System, incorporating fairly accurate models of the movements, orientation an rotation of 35 objects, including all planets, Pluto and most major moons.
 
-Some features:
+# # Version 0.403 [2023 07 04]
+
+- Move the position mark over the planet using mouse added
+- Solved errors in bump textures
+- Solved error in light time correction
+- Solved error in Saturn ring texture
+- Updated BABYLON.Mesh.* to BABYLON.MeshBuilder.*
+- Minor optimization in shadow calculation and Moon position
+
+# # Some features:
 
 - Near full scale of the Solar System, from ~20 km to 60 Astronomical Units.
 
