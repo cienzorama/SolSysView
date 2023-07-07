@@ -1,6 +1,6 @@
 star_pos=[];
 
-function star_data() {
+function star_data(jd) {
 
 					var sd01=[
 					[ +2.065000, +42.329700],
@@ -1319,6 +1319,7 @@ function star_data() {
 
 					var ra1,de1;
 					var elon,elat,hyp,sx1,sy1,sz1;
+					var precesa=3.82394E-5 *(jd-2451545.0)*Math.PI/180.0;
 					for (var i=0;i<lsd01;i++) {
 
 						ra1=sd01[i][0]*htor+Math.PI*0;
@@ -1328,6 +1329,7 @@ function star_data() {
 						elat=Math.asin(Math.sin(de1)*cosecl-Math.cos(de1)*sinecl*Math.sin(ra1));
 						hyp=sradio*Math.cos(elat);
 
+						elon=elon+precesa;
 						sy1=sradio*Math.sin(elat);
 						sx1=hyp*Math.cos(elon);
 						sz1=hyp*Math.sin(elon);

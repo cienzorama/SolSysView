@@ -6,7 +6,7 @@
 
 		<link rel="icon" type="image/vnd.microsoft.icon" href="favicon.ico">
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-        <title>SolSys View v0.403 21d 04/07/2023</title>
+        <title>SolSyS View v0.405 02h 07/07/2023</title>
 
         <style>
             html, body {
@@ -59,9 +59,16 @@
 		  
 
 		  <!--- Base de datos de figura de las constelaciones --->
-		  <script src="js/stars_db.js"></script>
-		
+		  <script src="/js/stars_db.js"></script>
 
+		  <!--- PLAN404 --->
+		  <script src="/js/de404_earth.js"></script>
+		  <script src="/js/de404_planets.js"></script>
+
+		  <!--- VSOP87 Approximation --->
+		  <script src="/js/vsop87_approx.js"></script>
+
+		
     </head>
 
    <body>
@@ -72,7 +79,6 @@
    
 
     <script>
-		//console.log("hola");
         const canvas = document.getElementById("renderCanvas"); // Get the canvas element
         const engine = new BABYLON.Engine(canvas, true); // Generate the BABYLON 3D engine
 		//const engine = new BABYLON.WebGPUEngine(canvas);		  
@@ -84,9 +90,6 @@
 		htor=Math.PI/12.0;
 		rtoh=12.0/Math.PI;
 
-		star_data();
-		constellations_alpha=0.07;
-
 		//Zona horaria
 		utc_zone=1;
 		//Automatica
@@ -94,14 +97,13 @@
 		utc_1=fake_date.getTimezoneOffset();
 		utc_zone=parseInt(utc_1/60.0);
 
-
-		//Comprobacion de si la visualizacion
-		//es desde el planeta
+		//Opción de visualización desde
+		// el planeta
 		over_planet=0;
 
 		//Correccion de la velocidad de la luz
 		//de la posicion de cualquier objeto
-		//Respecto a la tierra
+		//Respecto a La Tierra
 		speed_light_correction=0;
 
 		//Opcion del cambio de comportamiento
@@ -130,13 +132,12 @@
 		//
 		*/
 
-
 		/*		  
 		fecha[0]=8;
-		fecha[1]=11;
-		fecha[2]=2022;
-		fecha[3]=8;
-		fecha[4]=03;
+		fecha[1]=8;
+		fecha[2]=2150;
+		fecha[3]=7;
+		fecha[4]=23;
 		*/
 
 
@@ -152,17 +153,27 @@
         //punto de vista es desde el planeta
 		sobre_control=0;
 
-		//Opcion de calculos precisos para La Luna	
+		//Opcion de calculos precisos para los planetas y La Luna
 		better_moon=0;
+		better_planets=0;
+		plan404=0;
+		vsop87=0;
+		ephemeris_model=1;
 	
 		//Calcula el dia juliano de la fecha actual	
 		jd=calc_jd(fecha);
+
         //Corrige la fecha local en funcion de la zona horaria
 		fecha_local=calc_fecha(jd+utc_zone/24.0);
 
+		//Datos de las figuras de las constelaciones
+		//corregidos de precesión
+		star_data(jd);
+		constellations_alpha=0.07;
+
 		//Numero total de objetos
 		n_objetos=10+1+2+4+10+5+3+1;
-		//Numero de divisiones de la orbita
+		//Numero de segmentos de cada órbita
 		n_seg_orbs=30;
 		//Variables de segmentos de orbita
 		seg_orbs=[];
@@ -170,8 +181,8 @@
 		fill2DimensionsArray(seg_orbs, n_objetos, n_seg_orbs);
 		fill2DimensionsArray(s_o_1, n_objetos, n_seg_orbs*3);
 
+		//Posición de la Gran Mancha Roja de Júpiter
 		grs_offset_angle=72;
-
 
 		//Orientaciones de todos los objetos
 		planet_w=[];
@@ -193,6 +204,8 @@
 		planet_pos=new Array(n_objetos);
 		calc_all_planets(jd);
 
+		//Calcula las órbitas y corrige el baricentro
+		//de los sistemas Tierra-Luna y Plutón-Caronte
         calc_orbits();
 		corrige_baricentro();
 
@@ -223,7 +236,16 @@
 		lines_penunmbra_pos=[];
 		calculame_las_sombras=0;
 
-		//Variable general de lineas
+		//Variables de los cálculos de transitos
+		transit_umbra_data=[];
+		transit_penumbra_data=[];
+		lines_transit_umbra=[];
+		lines_transit_penumbra=[];
+		calculame_los_transitos=0;
+		transit_far_id=6;
+		transit_near_id=4;
+
+		//Variables de líneas, esferas y materiales
 		lines=[];
 		sph1=[];
 		sph1_mat=[];
@@ -241,7 +263,6 @@
 		dt_multiplier=dtv[0]+dtv[1]/24.0+dtv[2]/1440.0+dtv[3]/86400.0;
 		cambia_dt=0;
 
-
 		//Objeto inicial
 		planet_id=3;
 		//Nombre de cada objeto
@@ -249,7 +270,7 @@
 		planet_id_max=planet_names.length;
 		
 		//Otros estados relativos 
-		//al buble principal
+		//al bucle principal
 		change_date=0;
 		change_date_mw=0;	
 		change_focus=0;
@@ -264,7 +285,7 @@
 		planet_sat_id=0;
 		
 		//Transparencia de las orbitas
-	     orbits_alpha=0.15;
+	    orbits_alpha=0.15;
 
 		//Objetos de luces y generadores de sombras
         //declarados como globales para acceder a
@@ -281,19 +302,17 @@
 
 		//Variable de posiciones de los
         //soles virtuales usados por el
-        //generador de sombra
+        //generador de sombras
 		fake_sun=[];
 
-		  
 		//Head
 		head_coordinates=0;
-
 
 		//Variables de posicionamiento local
         //orientacion y horizonte artificial
 
 		//Ubicacion inicial
-		lat=90*Math.PI/180;
+		lat=90*dtor;
 		lon=0;
 		lat_lon_alt=0;
 
@@ -323,13 +342,11 @@
 		pro_e=0;
 		pro_n=0;
 
-
 		c2t=new BABYLON.Vector3(0,0,0);
 
 		ori_altaz=1;
 		ori_equat=0;
 		calc_lat_lon_pos();
-
 
 		camara_fija=0;
 		planet_point_id=-1;
@@ -347,6 +364,8 @@
 
 		s_o_1=[];
 
+		//Iluminación de la parte en sombra de los planetas
+		planets_ambient=0;
 
         //
         const createScene = function () {
@@ -385,15 +404,14 @@
 					sph1_mat[ii].diffuseTexture.uScale=-1;
 					sph1_mat[ii].diffuseTexture.vScale=-1;
 					sph1_mat[ii].specularColor = new BABYLON.Color3(0,0,0);
+					sph1_mat[ii].ambientColor= new BABYLON.Color3(planets_ambient,planets_ambient,planets_ambient);
 
 					if (ii==0) {
 
 						sph1_mat[ii].emissiveColor = new BABYLON.Color3(1, 1, 0.75);
 						sph1_mat[ii].disableLighting = true;
 						sph1[ii].isBlocker=false;
-
 					}
-
 
 					if (typeof planet_text_bump[ii] != 'undefined') {
 
@@ -405,13 +423,25 @@
 
 					}
 
-
 					if (typeof planet_text_height[ii] != 'undefined') {
 
-						sph1[ii].applyDisplacementMap(planet_text_height[ii], -planet_rad[ii]*i_ua_km*0.5, planet_rad[ii]*i_ua_km*0.5);
+						var dmin=-planet_rad[ii]*i_ua_km;
+						var dmax=planet_rad[ii]*i_ua_km;
 
-						if (ii==25) {
-							sph1[ii].applyDisplacementMap(planet_text_height[ii], planet_rad[ii]*i_ua_km*1, planet_rad[ii]*i_ua_km*1);
+						switch (ii) {
+
+							case 11:
+								var os=new BABYLON.Vector2(-0.3,0);
+								sph1[ii].applyDisplacementMap(planet_text_height[ii], 0.4*dmin, 0.4*dmax,null,os,null,null);	
+							break;
+
+							case 25:
+								sph1[ii].applyDisplacementMap(planet_text_height[ii], dmin,dmax);
+							break;
+
+							default:
+								sph1[ii].applyDisplacementMap(planet_text_height[ii], dmin,dmax);
+
 						}
 
 					}
@@ -430,10 +460,9 @@
 				sph1[ii].rotate(BABYLON.Axis.Y, planet_ori2[ii], BABYLON.Space.WORLD);
 				sph1[ii].rotate(BABYLON.Axis.Z, 0.0, BABYLON.Space.WORLD);
 
-
 				}
 				//-------------------------
-
+				
 
 				//----
 				planet_line_data[0]=new BABYLON.Vector3(NaN,NaN,NaN);
@@ -446,7 +475,7 @@
 				planet_traj_n=2;
 				planet_traj_data[0]=new BABYLON.Vector3(NaN,NaN,NaN);
 				planet_traj_data[1]=new BABYLON.Vector3(NaN,NaN,NaN);
-				//planet_traj=BABYLON.Mesh.CreateLines ( "planet_line", planet_traj_data,scene,true);
+				//..//planet_traj=BABYLON.Mesh.CreateLines ( "planet_line", planet_traj_data,scene,true);
 				planet_traj =BABYLON.MeshBuilder.CreateLines ( "planet_traj", {points: planet_traj_data},scene,true);  
 				planet_traj.color=new BABYLON.Color3(1,0,0);
 				planet_traj.alpha=1.0;
@@ -462,34 +491,39 @@
 
 				//--Sombras
 				calcula_sombras();
-				lines_umbra=BABYLON.Mesh.CreateLines ( "Umbra_lines", lines_umbra_pos,scene); 
+				//..//lines_umbra=BABYLON.Mesh.CreateLines ( "Umbra_lines", lines_umbra_pos,scene); 
+				lines_umbra =BABYLON.MeshBuilder.CreateLines ( "Umbra_lines", {points: lines_umbra_pos},scene,true);
 				lines_umbra.color = new BABYLON.Color3(1, 0, 0);
-				lines_penumbra=BABYLON.Mesh.CreateLines ( "Penumbra_lines", lines_penumbra_pos,scene); 
+				//..//lines_penumbra=BABYLON.Mesh.CreateLines ( "Penumbra_lines", lines_penumbra_pos,scene); 
+				lines_penumbra =BABYLON.MeshBuilder.CreateLines ( "Penumbra_lines", {points: lines_penumbra_pos},scene,true);
 				lines_penumbra.color = new BABYLON.Color3(1, 1, 0);
 				//line_umbra.alpha=0.5;
 				//--------------------
 
+				//--Transitos
+				calcula_transitos();
+				lines_transit_umbra =BABYLON.MeshBuilder.CreateLines ( "Transit Umbra lines", {points: transit_umbra_data},scene,true);
+				lines_transit_umbra.color = new BABYLON.Color3(1, 0, 1);
+				lines_transit_penumbra =BABYLON.MeshBuilder.CreateLines ( "Transit Umbra lines", {points: transit_penumbra_data},scene,true);
+				lines_transit_penumbra.color = new BABYLON.Color3(0, 1, 1);
+				//----------------------
 
 				//--horizonte local
-				lines_local_horizon=BABYLON.Mesh.CreateLines ( "Horizon_lines", local_horizon,scene); 
+				//..//lines_local_horizon=BABYLON.Mesh.CreateLines ( "Horizon_lines", local_horizon,scene);
+				lines_local_horizon=BABYLON.MeshBuilder.CreateLines ( "Horizon_lines", {points: local_horizon},scene,true);
 				lines_local_horizon.color = new BABYLON.Color3(0, 1, 0);				
 				lines_local_horizon.alpha=0.25;
 				lines_local_horizon.isVisible=false;
 				//-----------------
 
-
 				//--Marca sobre el planeta				
-				//..//sph2=BABYLON.Mesh.CreateSphere("planet_mark",10,lat_lon_rad*0+1,scene,true);
-				sph2= BABYLON.MeshBuilder.CreateSphere("planet_mark", {segments:10, diameter:1}, scene,true);
+				sph2= BABYLON.MeshBuilder.CreateSphere("planet_mark", {segments:10, diameter: lat_lon_rad}, scene,true);
 				sph2.position=lat_lon_pos;
-				sph2.scaling=new BABYLON.Vector3(lat_lon_rad,lat_lon_rad,lat_lon_rad);
 				sph2_mat = new BABYLON.StandardMaterial("planet_mark_material", scene);
 				sph2_mat.emissiveColor = new BABYLON.Color3(1, 0, 0);
 				sph2_mat.diffuseColor = new BABYLON.Color3(1, 0, 0);
-				//sph2_mat.specularColor = new BABYLON.Color3(0,0,0);
 				sph2.material = sph2_mat;
 				//----------------
-
 
 				//--Esfera de brillo solar (glow)
 				//..//glow_sph=BABYLON.Mesh.CreateSphere("glow_sphere",10,1.1*planet_rad[0]*i_ua_km,scene,true);
@@ -501,7 +535,6 @@
 				glow_sph_mat.alpha=0.1;
 				glow_sph.material = glow_sph_mat;
 				//---------------
-
 
 				//--Esferas generadoras de sombra para La Tierra y La Luna
 				//..//fake_earth=BABYLON.Mesh.CreateSphere("fake_earth_sphere",10,2*0.75*planet_rad[3]*i_ua_km,scene,true);
@@ -515,7 +548,6 @@
 				fake_moon.receiveShadows=false;
 				fake_moon.layerMask=0;
 				//-------------------				
-
 
 				//--Anillo de Saturno----
 				const saturn_ring_shape = [
@@ -549,8 +581,6 @@
 				saturn_ring.rotate(BABYLON.Axis.Z, 0.0, BABYLON.Space.WORLD);
 				//-------------------------
 
-
-
 				//--Anillo de Urano----
 				const uranus_ring_shape = [
 					new BABYLON.Vector3(0.5*48000*i_ua_km, 0, 0),
@@ -578,7 +608,6 @@
 				uranus_ring.rotate(BABYLON.Axis.Y, planet_ori2[8], BABYLON.Space.WORLD);
 				uranus_ring.rotate(BABYLON.Axis.Z, 0.0, BABYLON.Space.WORLD);
 				//-------------------------
-
 
 				//--Anillo de Neptuno----
 				const neptune_ring_shape = [
@@ -651,6 +680,12 @@
 
 				sky_sphere.rotate(BABYLON.Axis.X, tilt, BABYLON.Space.WORLD);
 				sky_sphere.rotate(BABYLON.Axis.Y, 0.0, BABYLON.Space.WORLD);
+				sky_sphere.rotate(BABYLON.Axis.Z, 0.0, BABYLON.Space.WORLD);
+
+				//Corrección de precesión simple
+				var precesa=-3.82394E-5 *(jd-2451545.0)*dtor;
+				sky_sphere.rotate(BABYLON.Axis.X, 0.0, BABYLON.Space.WORLD);
+				sky_sphere.rotate(BABYLON.Axis.Y, precesa, BABYLON.Space.WORLD);
 				sky_sphere.rotate(BABYLON.Axis.Z, 0.0, BABYLON.Space.WORLD);
 				//-------------------
 
@@ -817,8 +852,6 @@
 				//----------------------
 				
 				trastoca_luces();
-
-	
 						
 				//GUI
 				
@@ -828,7 +861,6 @@
 				var al_top=BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
 
 
-				
 				//Firma y otros datos
 				//----------------------------------
 
@@ -851,7 +883,7 @@
 
 					//Texto de datos del programa
 					var personal_data_text = new BABYLON.GUI.TextBlock();
-					personal_data_text.text = "SolSyS View v0.403 21d\n © cienzorama@gmail.com, 2023";
+					personal_data_text.text = "SolSyS View v0.405 02h\n © cienzorama@gmail.com, 2023";
 					personal_data_text.color = "white";
 					personal_data_text.fontSize = 10;
 					personal_data_text.top="20px";
@@ -2157,6 +2189,7 @@
 					opt1_rect.isVisible=true;
 					opt2_rect.isVisible=false;
 					opt3_rect.isVisible=false;
+					opt4_rect.isVisible=false;
 
 					opt1_button.color="black";
 					opt1_button.background="yellow";
@@ -2166,6 +2199,9 @@
 
 					opt3_button.color="white";
 					opt3_button.background="gray";
+
+					opt4_button.color="white";
+					opt4_button.background="gray";
 
 				});
 				opts_rect.addControl(opt1_button);
@@ -2462,6 +2498,7 @@
 					opt1_rect.isVisible=false;
 					opt2_rect.isVisible=true;
 					opt3_rect.isVisible=false;
+					opt4_rect.isVisible=false;
 
 					opt1_button.color="white";
 					opt1_button.background="gray";
@@ -2471,6 +2508,9 @@
 
 					opt3_button.color="white";
 					opt3_button.background="gray";
+
+					opt4_button.color="white";
+					opt4_button.background="gray";
 
 				});
 				opts_rect.addControl(opt2_button);
@@ -2560,6 +2600,45 @@
 				opt2_rect.addControl(light_intensity_text);
 
 
+				//Control de la intensidad de la iluminacion
+				var light_ambient_slider = new BABYLON.GUI.Slider();
+				light_ambient_slider.minimum = 0.0;
+				light_ambient_slider.maximum = 1;
+				light_ambient_slider.value = planets_ambient;
+				light_ambient_slider.step=0.01;
+				light_ambient_slider.height = "20px";
+				light_ambient_slider.width = "250px";
+				light_ambient_slider.top="80px";
+				light_ambient_slider.left="10px";
+				light_ambient_slider.background = "blue";
+				light_ambient_slider.horizontalAlignment = al_left;
+				light_ambient_slider.verticalAlignment = al_top;			
+				light_ambient_slider.onValueChangedObservable.add(function(value) {
+	
+					planets_ambient=value;
+
+					for (var ii=0;ii<n_objetos;ii++) {
+
+						sph1_mat[ii].ambientColor= new BABYLON.Color3(planets_ambient,planets_ambient,planets_ambient);
+
+					}
+	
+				});
+				opt2_rect.addControl(light_ambient_slider);
+
+				//Texto del control de la intesidad de la limunacion
+				var light_ambient_text = new BABYLON.GUI.TextBlock();
+				light_ambient_text.text = "Ambient Light"
+				light_ambient_text.color = "white";
+				light_ambient_text.fontSize = 20;
+				light_ambient_text.top="75px";
+				light_ambient_text.left="248px";
+				light_ambient_text.height="30px";
+				light_ambient_text.width = "180px";
+				light_ambient_text.horizontalAlignment = al_left;
+				light_ambient_text.verticalAlignment = al_top;				
+				opt2_rect.addControl(light_ambient_text);
+
 				//Slider de selección de zona horaria		
 				var utc_slider = new BABYLON.GUI.Slider();
 				utc_slider.minimum = -12;
@@ -2568,7 +2647,7 @@
 				utc_slider.step=1;
 				utc_slider.height = "20px";
 				utc_slider.width = "250px";
-				utc_slider.top="80px";
+				utc_slider.top="110px";
 				utc_slider.left="10px";
 				utc_slider.background = "white";
 				utc_slider.horizontalAlignment = al_left;
@@ -2591,47 +2670,13 @@
 				utc_text.text = "UTC " + (utc_zone<=0?"":"+") + utc_zone; 
 				utc_text.color = "white";
 				utc_text.fontSize = 20;
-				utc_text.top="75px";
+				utc_text.top="105px";
 				utc_text.left="220px";
 				utc_text.height="30px";
 				utc_text.width = "180px";
 				utc_text.horizontalAlignment = al_left;
 				utc_text.verticalAlignment = al_top;				
 				opt2_rect.addControl(utc_text);
-
-
-				//Opcion de sombras computadas
-				var sombras_checkbox = new BABYLON.GUI.Checkbox();
-				sombras_checkbox.width = "20px";
-				sombras_checkbox.height = "20px";
-				sombras_checkbox.color = "white";
-				sombras_checkbox.background = "green";
-				sombras_checkbox.top="110px";
-				sombras_checkbox.left="20px";
-				sombras_checkbox.text="hola";
-				sombras_checkbox.horizontalAlignment = al_left;
-				sombras_checkbox.verticalAlignment = al_top;	
-				sombras_checkbox.onIsCheckedChangedObservable.add(function(value) {
-					calculame_las_sombras=value;
-					actualiza=1;
-				});	     
-				opt2_rect.addControl(sombras_checkbox);
-
-				
-
-
-				//Texto de sombras computadas
-				var sombras_text = new BABYLON.GUI.TextBlock();
-				sombras_text.text = "Computed Shadows"
-				sombras_text.color = "white";
-				sombras_text.fontSize = 20;
-				sombras_text.top="105px";
-				sombras_text.left="50px";
-				sombras_text.height="30px";
-				sombras_text.width = "180px";
-				sombras_text.horizontalAlignment = al_left;
-				sombras_text.verticalAlignment = al_top;				
-				opt2_rect.addControl(sombras_text);
 
 
 				//Opcion de modo interactivo
@@ -2769,8 +2814,8 @@
 					opt1_rect.isVisible=false;
 					opt2_rect.isVisible=false;
 					opt3_rect.isVisible=true;
+					opt4_rect.isVisible=false;
 					
-
 					opt1_button.color="white";
 					opt1_button.background="gray";
 
@@ -2780,6 +2825,8 @@
 					opt3_button.color="black";
 					opt3_button.background="yellow";
 
+					opt4_button.color="white";
+					opt4_button.background="gray";
 
 				});
 				opts_rect.addControl(opt3_button);
@@ -2980,9 +3027,387 @@
 				grs_slider.onPointerDownObservable.add(function() {sobre_control=1;});
 				grs_slider.onPointerUpObservable.add(function() {sobre_control=0;});
 				opt3_rect.addControl(grs_slider);
+
+
+				///Texto de selector de modelo de efemérides
+				var ephm_text = new BABYLON.GUI.TextBlock();
+				ephm_text.text = "Ephemeris model"
+				ephm_text.color = "white";
+				ephm_text.fontSize = 20;
+				ephm_text.top="150px";
+				ephm_text.left="20px";
+				ephm_text.height="30px";
+				ephm_text.width = "160px";
+				ephm_text.horizontalAlignment = al_left;
+				ephm_text.verticalAlignment = al_top;				
+				opt3_rect.addControl(ephm_text);
+
+
+				///Texto de selector de modelo de efemérides
+				var ephmt_text = new BABYLON.GUI.TextBlock();
+				ephmt_text.text = "Keplerian Osc."
+				ephmt_text.color = "white";
+				ephmt_text.fontSize = 20;
+				ephmt_text.top="150px";
+				ephmt_text.left="210px";
+				ephmt_text.height="30px";
+				ephmt_text.width = "160px";
+				ephmt_text.horizontalAlignment = al_left;
+				ephmt_text.verticalAlignment = al_top;				
+				opt3_rect.addControl(ephmt_text);
+
+
+
+				//Selector de modelo de efemerides -
+				var ephmm_button = BABYLON.GUI.Button.CreateSimpleButton("Eph. model -","<");
+				ephmm_button.width = "30px";
+				ephmm_button.height = "30px";
+				ephmm_button.color = "white";
+				ephmm_button.background = "green";
+				ephmm_button.top="150px";
+				ephmm_button.left="190px";
+				ephmm_button.cornerRadius=1;
+				ephmm_button.horizontalAlignment = al_left;
+				ephmm_button.verticalAlignment = al_top;
+				ephmm_button.onPointerClickObservable.add (function() {
+
+					ephemeris_model--;
+					if (ephemeris_model<1) ephemeris_model=1;
+
+					if (ephemeris_model==1) {
+						ephmt_text.text = "Keplerian Osc.";
+						better_planets=0;
+						plan404=0;
+						vsop87=0;
+					}
+					if (ephemeris_model==2) {
+						ephmt_text.text = "   plan404    ";
+						better_planets=1;
+						plan404=1;
+						vsop87=0;
+					}
+					if (ephemeris_model==3) {
+						ephmt_text.text = "    vsop87    ";
+						better_planets=1;
+						plan404=0;
+						vsop87=1;
+					}
+
+					actualiza=1;
+
+				});
+				opt3_rect.addControl(ephmm_button);
 					
 
+				//Selector de modelo de efemerides +
+				var ephmp_button = BABYLON.GUI.Button.CreateSimpleButton("Eph. model +",">");
+				ephmp_button.width = "30px";
+				ephmp_button.height = "30px";
+				ephmp_button.color = "white";
+				ephmp_button.background = "green";
+				ephmp_button.top="150px";
+				ephmp_button.left="360px";
+				ephmp_button.cornerRadius=1;
+				ephmp_button.horizontalAlignment = al_left;
+				ephmp_button.verticalAlignment = al_top;
+				ephmp_button.onPointerClickObservable.add (function() {
+
+					ephemeris_model++;
+					if (ephemeris_model>3) ephemeris_model=3;
+
+					if (ephemeris_model==1) {
+						ephmt_text.text = "Keplerian Osc.";
+						better_planets=0;
+						plan404=0;
+						vsop87=0;
+					}
+					if (ephemeris_model==2) {
+						ephmt_text.text = "   plan404    ";
+						better_planets=1;
+						plan404=1;
+						vsop87=0;
+					}
+					if (ephemeris_model==3) {
+						ephmt_text.text = "    vsop87    ";
+						better_planets=1;
+						plan404=0;
+						vsop87=1;
+					}
+
+					actualiza=1;
+
+				});
+				opt3_rect.addControl(ephmp_button);
+
 				//-------
+
+
+				//-----
+				//Panel de opciones 4
+
+				//Cuadro de opciones del selector de objeto
+				var opt4_rect = new BABYLON.GUI.Rectangle();
+				opt4_rect.width = "420px";
+				opt4_rect.height = "215px";
+				opt4_rect.cornerRadius = 20;
+				opt4_rect.color = "Orange";
+				opt4_rect.thickness = 4;
+				opt4_rect.background = "green";
+				opt4_rect.top="0";
+				opt4_rect.left="0";
+				opt4_rect.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+				opt4_rect.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+				opt4_rect.alpha=0.85;
+				opt4_rect.isVisible=0;		
+				opts_rect.addControl(opt4_rect);
+
+				//Boton de apertura y cierre de opciones del selector de objeto
+				var opt4_button = BABYLON.GUI.Button.CreateSimpleButton("opciones 3"," None ");
+				opt4_button.width = "50px";
+				opt4_button.height = "30px";
+				opt4_button.color = "white";
+				opt4_button.cornerRadius=10;
+				opt4_button.background = "gray";
+				opt4_button.top="130px";
+				opt4_button.left="10px";
+				opt4_button.horizontalAlignment = al_left;
+				opt4_button.verticalAlignment =	al_top;
+				opt4_button.textBlock.text=" IV "					
+				opt4_button.onPointerClickObservable.add (function() {
+
+					opt1_rect.isVisible=false;
+					opt2_rect.isVisible=false;
+					opt3_rect.isVisible=false;
+					opt4_rect.isVisible=true;
+					
+
+					opt1_button.color="white";
+					opt1_button.background="gray";
+
+					opt2_button.color="white";
+					opt2_button.background="gray";
+
+					opt3_button.color="white";
+					opt3_button.background="gray";
+
+					opt4_button.color="black";
+					opt4_button.background="yellow";
+
+
+				});
+				opts_rect.addControl(opt4_button);
+
+				//Opcion de sombras computadas
+				var sombras_checkbox = new BABYLON.GUI.Checkbox();
+				sombras_checkbox.width = "20px";
+				sombras_checkbox.height = "20px";
+				sombras_checkbox.color = "white";
+				sombras_checkbox.background = "green";
+				sombras_checkbox.top="20px";
+				sombras_checkbox.left="20px";
+				sombras_checkbox.text="hola";
+				sombras_checkbox.horizontalAlignment = al_left;
+				sombras_checkbox.verticalAlignment = al_top;	
+				sombras_checkbox.onIsCheckedChangedObservable.add(function(value) {
+					calculame_las_sombras=value;
+					actualiza=1;
+				});	     
+				opt4_rect.addControl(sombras_checkbox);
+
+				//Texto de sombras computadas
+				var sombras_text = new BABYLON.GUI.TextBlock();
+				sombras_text.text = "Computed Shadows"
+				sombras_text.color = "white";
+				sombras_text.fontSize = 20;
+				sombras_text.top="20px";
+				sombras_text.left="50px";
+				sombras_text.height="30px";
+				sombras_text.width = "180px";
+				sombras_text.horizontalAlignment = al_left;
+				sombras_text.verticalAlignment = al_top;				
+				opt4_rect.addControl(sombras_text);
+
+				//Activa o desactiva Los cálculos de tránsitos
+				var trans_checkbox = new BABYLON.GUI.Checkbox();
+				trans_checkbox.width = "20px";
+				trans_checkbox.height = "20px";
+				trans_checkbox.color = "white";
+				trans_checkbox.background = "green";
+				trans_checkbox.top="50px";
+				trans_checkbox.left="20px";
+				trans_checkbox.horizontalAlignment = al_left;
+				trans_checkbox.verticalAlignment = al_top;	
+				trans_checkbox.onIsCheckedChangedObservable.add(function(value) {
+					
+					calculame_los_transitos=value;
+					actualiza=1;
+
+				});	     
+				opt4_rect.addControl(trans_checkbox);
+
+				//Texto de cálculo de transitos
+				var trans_cb_text = new BABYLON.GUI.TextBlock();
+				trans_cb_text.text = "Compute Transits"
+				trans_cb_text.color = "white";
+				trans_cb_text.fontSize = 20;
+				trans_cb_text.top="47px";
+				trans_cb_text.left="50px";
+				trans_cb_text.height="30px";
+				trans_cb_text.width = "160px";
+				trans_cb_text.horizontalAlignment = al_left;
+				trans_cb_text.verticalAlignment = al_top;				
+				opt4_rect.addControl(trans_cb_text);
+
+				//Texto del selector de objeto cercano
+				var transn_text = new BABYLON.GUI.TextBlock();
+				transn_text.text = "Near object"
+				transn_text.color = "white";
+				transn_text.fontSize = 20;
+				transn_text.top="90px";
+				transn_text.left="20px";
+				transn_text.height="30px";
+				transn_text.width = "110px";
+				transn_text.horizontalAlignment = al_left;
+				transn_text.verticalAlignment = al_top;				
+				opt4_rect.addControl(transn_text);
+
+				//Texto del selector de objeto lejano
+				var transn_text = new BABYLON.GUI.TextBlock();
+				transn_text.text = "Far object"
+				transn_text.color = "white";
+				transn_text.fontSize = 20;
+				transn_text.top="130px";
+				transn_text.left="20px";
+				transn_text.height="30px";
+				transn_text.width = "110px";
+				transn_text.horizontalAlignment = al_left;
+				transn_text.verticalAlignment = al_top;				
+				opt4_rect.addControl(transn_text);
+
+				//Selector de objeto cecano -
+				var trans_nom_button = BABYLON.GUI.Button.CreateSimpleButton("Eph. model -","<");
+				trans_nom_button.width = "30px";
+				trans_nom_button.height = "30px";
+				trans_nom_button.color = "white";
+				trans_nom_button.background = "green";
+				trans_nom_button.top="90px";
+				trans_nom_button.left="150px";
+				trans_nom_button.cornerRadius=1;
+				trans_nom_button.horizontalAlignment = al_left;
+				trans_nom_button.verticalAlignment = al_top;
+				trans_nom_button.onPointerClickObservable.add (function() {
+
+					transit_near_id--;
+					if (transit_near_id<0) transit_near_id=0;
+					transno_text.text = planet_names[transit_near_id];
+
+					actualiza=1;
+
+				});
+				opt4_rect.addControl(trans_nom_button);
+
+				//Texto del  objeto cercano
+				var transno_text = new BABYLON.GUI.TextBlock();
+				transno_text.text = planet_names[transit_near_id];
+				transno_text.color = "white";
+				transno_text.fontSize = 20;
+				transno_text.top="90px";
+				transno_text.left="190px";
+				transno_text.height="30px";
+				transno_text.width = "150px";
+				transno_text.horizontalAlignment = al_left;
+				transno_text.verticalAlignment = al_top;				
+				opt4_rect.addControl(transno_text);
+
+
+				//Selector de objeto cecano +
+				var trans_nop_button = BABYLON.GUI.Button.CreateSimpleButton("Eph. model -",">");
+				trans_nop_button.width = "30px";
+				trans_nop_button.height = "30px";
+				trans_nop_button.color = "white";
+				trans_nop_button.background = "green";
+				trans_nop_button.top="90px";
+				trans_nop_button.left="350px";
+				trans_nop_button.cornerRadius=1;
+				trans_nop_button.horizontalAlignment = al_left;
+				trans_nop_button.verticalAlignment = al_top;
+				trans_nop_button.onPointerClickObservable.add (function() {
+
+					transit_near_id++;
+					if (transit_near_id>planet_id_max-1) transit_near_id=planet_id_max-1;
+					transno_text.text = planet_names[transit_near_id];
+
+					actualiza=1;
+
+				});
+				opt4_rect.addControl(trans_nop_button);
+
+
+
+				//
+
+				//Selector de objeto lejano -
+				var trans_fom_button = BABYLON.GUI.Button.CreateSimpleButton("Eph. model -","<");
+				trans_fom_button.width = "30px";
+				trans_fom_button.height = "30px";
+				trans_fom_button.color = "white";
+				trans_fom_button.background = "green";
+				trans_fom_button.top="130px";
+				trans_fom_button.left="150px";
+				trans_fom_button.cornerRadius=1;
+				trans_fom_button.horizontalAlignment = al_left;
+				trans_fom_button.verticalAlignment = al_top;
+				trans_fom_button.onPointerClickObservable.add (function() {
+
+					transit_far_id--;
+					if (transit_far_id<0) transit_far_id=0;
+					transfo_text.text = planet_names[transit_far_id];
+
+					actualiza=1;
+
+				});
+				opt4_rect.addControl(trans_fom_button);
+
+				//Texto del  objeto cercano
+				var transfo_text = new BABYLON.GUI.TextBlock();
+				transfo_text.text = planet_names[transit_far_id];
+				transfo_text.color = "white";
+				transfo_text.fontSize = 20;
+				transfo_text.top="130px";
+				transfo_text.left="190px";
+				transfo_text.height="30px";
+				transfo_text.width = "150px";
+				transfo_text.horizontalAlignment = al_left;
+				transfo_text.verticalAlignment = al_top;				
+				opt4_rect.addControl(transfo_text);
+
+
+				//Selector de objeto cecano +
+				var trans_fop_button = BABYLON.GUI.Button.CreateSimpleButton("Eph. model -",">");
+				trans_fop_button.width = "30px";
+				trans_fop_button.height = "30px";
+				trans_fop_button.color = "white";
+				trans_fop_button.background = "green";
+				trans_fop_button.top="130px";
+				trans_fop_button.left="350px";
+				trans_fop_button.cornerRadius=1;
+				trans_fop_button.horizontalAlignment = al_left;
+				trans_fop_button.verticalAlignment = al_top;
+				trans_fop_button.onPointerClickObservable.add (function() {
+
+					transit_far_id++;
+					if (transit_far_id>planet_id_max-1) transit_far_id=planet_id_max-1;
+					transfo_text.text = planet_names[transit_far_id];
+
+					actualiza=1;
+
+				});
+				opt4_rect.addControl(trans_fop_button);
+
+
+				//-------
+
+
 
 
 				//-----
@@ -3399,8 +3824,8 @@
 				c_target=camera.target;
 				animacion_camara=0;
 
-				ano_min=1900;
-				ano_max=2100;
+				ano_min=1800;
+				ano_max=2200;
 
 				//Función principal de actualización 
 				scene.registerBeforeRender(function () {
@@ -3580,6 +4005,7 @@
 						calc_lat_lon_pos()
 						mueve_todo();
 						//calcula_sombras();
+						//calcula_transitos();
 						actualiza=0;
 						render=1;
 						cambia_botones_de_planeta=1;
@@ -3634,6 +4060,7 @@
 						calc_lat_lon_pos()
 						mueve_todo();
 						//calcula_sombras();
+						//calcula_transitos();
 						render=1;
 						cambia_botones_de_planeta=1;
 
@@ -3651,21 +4078,28 @@
 					}
 
 					//Opciones del zoom mediante la rueda del raton
-					//if (camera.radius>10) camera.wheelDeltaPercentage=0.1;
 					if (camera.radius<10) camera.wheelDeltaPercentage=0.03;
 					if (camera.radius<1) camera.wheelDeltaPercentage=0.03;
 
-					//if (camera.radius>10) camera.pinchDeltaPercentage=0.1;
 					if (camera.radius<10) camera.pinchDeltaPercentage=0.03;
 					if (camera.radius<1) camera.pinchDeltaPercentage=0.03;
-					
+
+					//Desactiva el efecto lens flare si la cámara
+					//está muy lejos del objetivo
+					if (camera.radius<0.05) {
+						lensFlareSystem.isEnabled=1;
+					} else {
+						lensFlareSystem.isEnabled=0;
+					}
 
 					//Cambio de foco hacia otro planeta o satelite
 					if (change_focus==1) {
 
-						var sph2_scale=sph2.absoluteScaling;
-						sph2.scaling=new BABYLON.Vector3(1.0/sph2_scale.x,1.0/sph2_scale.y,1.0/sph2_scale.z);					
-						sph2.scaling=new BABYLON.Vector3(lat_lon_rad,lat_lon_rad,lat_lon_rad);
+						sph2.dispose();
+						sph2= BABYLON.MeshBuilder.CreateSphere("planet_mark", {segments:10, diameter: lat_lon_rad}, scene,true);
+						sph2.position=lat_lon_pos;
+						sph2.material = sph2_mat;
+						glo.addExcludedMesh(sph2);
 
 						if (planet_id>0) {
 	
@@ -3879,6 +4313,30 @@
 						}
 
 
+						//--Constelaciones -- Actualzación de precesión
+						star_lines.dispose();
+						star_data(jd);
+						star_lines =BABYLON.MeshBuilder.CreateLines ( "Constellation_lines", {points: star_pos},scene,true);  
+						star_lines.color = new BABYLON.Color3(1, 1, 1);
+						star_lines.alpha=constellations_alpha;
+
+
+						//--Esfera celeste -- Actualización de precesión
+						sky_sphere.rotation=new BABYLON.Vector3(0, 0, 0);
+						sky_sphere.rotate(BABYLON.Axis.X, 0.0, BABYLON.Space.WORLD);
+						sky_sphere.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.WORLD);
+						sky_sphere.rotate(BABYLON.Axis.Z, 0.0, BABYLON.Space.WORLD);
+
+						sky_sphere.rotate(BABYLON.Axis.X, tilt, BABYLON.Space.WORLD);
+						sky_sphere.rotate(BABYLON.Axis.Y, 0.0, BABYLON.Space.WORLD);
+						sky_sphere.rotate(BABYLON.Axis.Z, 0.0, BABYLON.Space.WORLD);
+
+						var precesa=-3.82394E-5 *(jd-2451545.0)*dtor;
+						sky_sphere.rotate(BABYLON.Axis.X, 0.0, BABYLON.Space.WORLD);
+						sky_sphere.rotate(BABYLON.Axis.Y, precesa, BABYLON.Space.WORLD);
+						sky_sphere.rotate(BABYLON.Axis.Z, 0.0, BABYLON.Space.WORLD);
+
+
 						//---
 						planet_line.dispose();
 						if (planet_lineo_id==planet_lined_id) {
@@ -3938,7 +4396,7 @@
 
 							planet_traj.dispose();
 							//..//planet_traj=BABYLON.Mesh.CreateLines ( "planet_line", planet_traj_data,scene,true); 
-							planet_traj=BABYLON.MeshBuilder.CreateLines("planet_line",{points: planet_traj_data},scene);
+							planet_traj=BABYLON.MeshBuilder.CreateLines("planet projected line",{points: planet_traj_data},scene);
 							planet_traj.color=new BABYLON.Color3(1,0,0);
 							planet_traj.alpha=1.0;
 
@@ -3957,13 +4415,23 @@
 
 						lines_umbra.dispose();
 						//..//lines_umbra=BABYLON.Mesh.CreateLines ( "lines ", lines_umbra_pos,scene);
-						lines_umbra=BABYLON.MeshBuilder.CreateLines ( "lines ", {points: lines_umbra_pos},scene);
+						lines_umbra=BABYLON.MeshBuilder.CreateLines ( "Umbra lines", {points: lines_umbra_pos},scene);
 						lines_umbra.color = new BABYLON.Color3(1, 0, 0);
 
 						lines_penumbra.dispose();
 						//..//lines_penumbra=BABYLON.Mesh.CreateLines ( "lines1 ", lines_penumbra_pos,scene); 
-						lines_penumbra=BABYLON.MeshBuilder.CreateLines ( "lines1 ", {points: lines_penumbra_pos},scene); 
+						lines_penumbra=BABYLON.MeshBuilder.CreateLines ( "Penumbra lines", {points: lines_penumbra_pos},scene); 
 						lines_penumbra.color = new BABYLON.Color3(1, 1, 0);
+
+
+						//Transitos
+						calcula_transitos();
+						lines_transit_umbra.dispose();
+						lines_transit_umbra =BABYLON.MeshBuilder.CreateLines ( "Transit Umbra lines", {points: transit_umbra_data},scene,true);
+						lines_transit_umbra.color = new BABYLON.Color3(1, 0, 1);
+						lines_transit_penumbra.dispose();
+						lines_transit_penumbra =BABYLON.MeshBuilder.CreateLines ( "Transit Umbra lines", {points: transit_penumbra_data},scene,true);
+						lines_transit_penumbra.color = new BABYLON.Color3(0, 1, 1);
 											
 
 						//Saturn ring update
@@ -4004,7 +4472,7 @@
 						
 						lines_local_horizon.dispose();
 						//..//lines_local_horizon=BABYLON.Mesh.CreateLines ( "lines ", local_horizon,scene); 
-						lines_local_horizon=BABYLON.MeshBuilder.CreateLines( "lines", {points: local_horizon},scene);
+						lines_local_horizon=BABYLON.MeshBuilder.CreateLines( "Horizon lines", {points: local_horizon},scene);
 						lines_local_horizon.color = new BABYLON.Color3(0, 1, 0);
 						lines_local_horizon.alpha=0.25;
 						lines_local_horizon.isVisible=false;
@@ -4017,23 +4485,6 @@
 						for (var ii=0;ii<fake_sun_n;ii++) {
 							
 							var ii1=fake_sun_list[ii];
-
-							//..//
-							/*
-							var lp=new BABYLON.Vector3(0,0,0);
-							var dx,dy,dz,d;
-							dx=planet_pos[0].x-planet_pos[ii1].x;
-							dy=planet_pos[0].y-planet_pos[ii1].y;
-							dz=planet_pos[0].z-planet_pos[ii1].z;
-							d=Math.sqrt(dx*dx+dy*dy+dz*dz);
-							dx/=d;dy/=d;dz/=d;
-
-							lp.x=planet_pos[ii1].x+fake_sun_distance[ii]*dx;
-							lp.y=planet_pos[ii1].y+fake_sun_distance[ii]*dy;
-							lp.z=planet_pos[ii1].z+fake_sun_distance[ii]*dz;
-							light[ii].position=lp;
-							*/
-							//..//
 
 							var fsp0=planet_pos[0].subtract(planet_pos[ii1]);
 							fsp0.normalize();
@@ -4049,9 +4500,6 @@
 
 
 						if (planet_point_id>=0 && planet_point_id!=planet_id) {
-
-							//camera.position=lat_lon_pos;
-							//camera.target=planet_pos[planet_point_id];
 
 							camera2.position=lat_lon_pos;
 							camera2.target=planet_pos[planet_point_id];
@@ -4257,7 +4705,7 @@
 
 						case BABYLON.PointerEventTypes.POINTERDOWN:
 
-							if (pointerInfo.event.button==2 && pointerInfo.pickInfo.hit && pointerInfo.pickInfo.pickedMesh == sph2) {
+							if (pointerInfo.event.button==2 /*&& pointerInfo.pickInfo.hit*/ && pointerInfo.pickInfo.pickedMesh == sph2) {
 								
 								sp=getScreenPosition();
 								atc02=1;
@@ -4331,7 +4779,7 @@
 						if (pointerInfo.event.wheelDelta>0) {
 
 							camera2.fov*=0.9;
-							if (camera2.fov<0.0001) camera2.fov=0.0001;
+							if (camera2.fov<0.0001/2) camera2.fov=0.0001/2;
 
 						} else {
 
@@ -4520,7 +4968,10 @@
                 engine.resize();
         });
 
-			
+	
+		//[OBSOLETA]
+		//Corrección del baricentro para los sistemas
+		//Tierra-Luna y Plutón-Caronte.
 		function corrige_baricentro() {
 
 			 return;
@@ -4530,7 +4981,6 @@
 			var Mm=7.347e22;
 			var Mt=Me+Mm;
 			var iMt=1.0/Mt;
-
 
 			var cmx=(planet_pos[3].x*Me + planet_pos[4].x*Mm)*iMt;
 			var cmy=(planet_pos[3].y*Me + planet_pos[4].y*Mm)*iMt;
@@ -4566,10 +5016,210 @@
 			planet_pos[10]=p10;
 			planet_pos[35]=p35;
 
+		}
+
+		//Cálculo de zonas de observación de tránsitos
+		//entre cuerpos sobre el objeto principal.
+		//Zona de umbra -> Lugar desde el que se observa una ocultación completa
+		//Zona de penumbra -> Lugar desde el que se observa una ocultación parcial
+		function calcula_transitos() {
+
+			//Creación de conjuntos de datos de tránsitos
+			//vacíos para la umbra y la penumbra
+			transit_umbra_data=[];
+			transit_umbra_data.length=0;
+			var cnt=0;
+			transit_umbra_data[cnt]=new BABYLON.Vector3(NaN,NaN,NaN);
+			cnt++;
+			transit_umbra_data[cnt]=new BABYLON.Vector3(NaN,NaN,NaN);
+			cnt++;
+
+			transit_penumbra_data=[];
+			transit_penumbra_data.length=0;
+			var cnt1=0;
+			transit_penumbra_data[cnt1]=new BABYLON.Vector3(NaN,NaN,NaN);
+			cnt1++;
+			transit_penumbra_data[cnt1]=new BABYLON.Vector3(NaN,NaN,NaN);
+			cnt1++;
+
+			//Opción general del cálculo de tránsitos
+			if (calculame_los_transitos==0) return;
+
+			//Los objetos lejano y cercano no pueden
+			// ser el objeto de proyección ni pueden
+			// ser iguales entre sí.
+			if (planet_id==transit_near_id) return;
+			if (planet_id==transit_far_id) return;
+			if (transit_far_id==transit_near_id) return;
+
+			if (planet_id==planet_point_id) return;
+
+			//Vector auxiliar, dirección Z+
+			var rx1=0;var ry1=0;var rz1=1;
+
+			//Vector de dirección que une los centros de
+			// los objetos ocultador y el ocultado
+			var dx1=planet_pos[transit_near_id].x-planet_pos[transit_far_id].x;
+			var dy1=planet_pos[transit_near_id].z-planet_pos[transit_far_id].z;
+			var dz1=planet_pos[transit_near_id].y-planet_pos[transit_far_id].y;
+			var d1=Math.sqrt(dx1*dx1+dy1*dy1+dz1*dz1);
+			dx1/=d1;dy1/=d1;dz1/=d1;
+
+			//Sale del cálculo de transitos si el proyector está en medio del objeto
+			d_nf=BABYLON.Vector3.Distance(planet_pos[transit_near_id],planet_pos[transit_far_id]);
+			d_fid=BABYLON.Vector3.Distance(planet_pos[planet_id],planet_pos[transit_far_id]);
+			if (d_fid<d_nf) return;
+
+			//Vectores en el plano perpendicular
+			//al vector de dirección
+			var ux1=(dy1*rz1-ry1*dz1);
+			var uy1=-(dx1*rz1-rx1*dz1);
+			var uz1=(dx1*ry1-rx1*dy1);
+
+			var ux2=(dy1*uz1-uy1*dz1);
+			var uy2=-(dx1*uz1-ux1*dz1);
+			var uz2=(dx1*uy1-ux1*dy1);
+
+			//Número de rayos
+			nn=200;
+
+			//Distancia de dibujado en función
+			//del radio del objeto
+			var h_sombra=1.01;
+
+			//Genera posiciones en el contorno de los objetos cercano
+			//y lejano, creando un rayo por cada par de puntos.
+			//Se calcula los posiciones en las que cada rayo intersecta una
+			//esfera centrada en el objeto principal, siendo el radio de la
+			//esfera igual al radio medio del objeto.
+			//Si no existe intersección se añade un punto de componentes NaN.
+			for (var kk=0;kk<nn;kk++) {
+
+				//ZOna de umbra
+				//Puntos sobre el objeto más lejano en el plano perpendicular
+				//al vector que une los objetos cercano y lejano
+				var ang1=2*Math.PI*kk/(nn-1);
+				var cos_ang1=Math.cos(ang1);
+				var sin_ang1=Math.sin(ang1);
+				var pr=planet_rad[transit_far_id]*i_ua_km;
+				var pox=planet_pos[transit_far_id].x+pr*(ux1*cos_ang1+ux2*sin_ang1);
+				var poy=planet_pos[transit_far_id].z+pr*(uy1*cos_ang1+uy2*sin_ang1);
+				var poz=planet_pos[transit_far_id].y+pr*(uz1*cos_ang1+uz2*sin_ang1);
+
+				//Punto sobre el objeto más cercano en el pleano perpendicular
+				//al vector que une los objetos cercano y lejano.
+				//Nótese que para la umbra los puntos se recorren con el mísma fase angular.
+				var pr=planet_rad[transit_near_id]*i_ua_km;
+				var pix=planet_pos[transit_near_id].x+pr*(ux1*cos_ang1+ux2*sin_ang1);
+				var piy=planet_pos[transit_near_id].z+pr*(uy1*cos_ang1+uy2*sin_ang1);
+				var piz=planet_pos[transit_near_id].y+pr*(uz1*cos_ang1+uz2*sin_ang1);
+
+				//Vector unitario que une los puntos del contorno
+				// de los objetos cercano y lejano.
+				var vix=pix-pox;
+				var viy=piy-poy;
+				var viz=piz-poz;
+				var vv=Math.sqrt(vix*vix+viy*viy+viz*viz);
+				vix/=vv;viy/=vv;viz/=vv;
+
+				//Comprobación de intersección con la esfera
+				if (1) {
+
+					var ocx=pix-planet_pos[planet_id].x;
+					var ocy=piy-planet_pos[planet_id].z;
+					var ocz=piz-planet_pos[planet_id].y;
+					var ocm=ocx*ocx+ocy*ocy+ocz*ocz;
+
+					var uoc=vix*ocx+viy*ocy+viz*ocz;
+
+					var pr=h_sombra*planet_rad[planet_id]*i_ua_km;
+					var in_root=4*uoc*uoc-4*(ocm-pr*pr);
+
+					//Si el interior de la raiz cuadrada es negativo
+					//no existe intesección y se asigna un vector NaN
+					if (in_root<=0) {
+
+						transit_umbra_data[cnt]=new BABYLON.Vector3(NaN,NaN,NaN);
+						cnt++;
+
+					//Si hay intersección, se toma el corte
+					//de menor distancia al objeto cercano	
+					} else {
+
+						var d0=Math.sqrt(in_root)/2.0;
+						var d1=-uoc+d0;
+						var d2=-uoc-d0;
+
+						if (d1<d2) {var df=d1;} else {var df=d2;}
+
+						transit_umbra_data[cnt]=new BABYLON.Vector3(pix+df*vix,piz+df*viz,piy+df*viy);
+						cnt++;
+
+					}
+
+				}
+
+				//Zona de penumbra
+				//Se recalcula el punto sobre el objeto más cercano en el plano
+				//perpendicular al vector que une los objetos cercano y lejano.
+				//Nótese que para la penumbra los puntos se recorren desfasados 180º.
+				cos_ang1*=-1;
+				sin_ang1*=-1;
+				var pr=planet_rad[transit_near_id]*i_ua_km;
+				var pix=planet_pos[transit_near_id].x+pr*(ux1*cos_ang1+ux2*sin_ang1);
+				var piy=planet_pos[transit_near_id].z+pr*(uy1*cos_ang1+uy2*sin_ang1);
+				var piz=planet_pos[transit_near_id].y+pr*(uz1*cos_ang1+uz2*sin_ang1);
+
+				//Vector unitario que une los puntos del contorno
+				// de los objetos cercano y lejano.
+				var vix=pix-pox;
+				var viy=piy-poy;
+				var viz=piz-poz;
+				var vv=Math.sqrt(vix*vix+viy*viy+viz*viz);
+				vix/=vv;viy/=vv;viz/=vv;
+
+				//Comprobación de intersección con la esfera
+				if (1) {
+
+					var ocx=pix-planet_pos[planet_id].x;
+					var ocy=piy-planet_pos[planet_id].z;
+					var ocz=piz-planet_pos[planet_id].y;
+					var ocm=ocx*ocx+ocy*ocy+ocz*ocz;
+
+					var uoc=vix*ocx+viy*ocy+viz*ocz;
+
+					var pr=h_sombra*planet_rad[planet_id]*i_ua_km;
+					var in_root=4*uoc*uoc-4*(ocm-pr*pr);
+
+					//Si el interior de la raiz cuadrada es negativo
+					//no existe intesección y se asigna un vector NaN
+					if (in_root<=0) {
+
+						transit_penumbra_data[cnt1]=new BABYLON.Vector3(NaN,NaN,NaN);
+						cnt1++;
+
+					//Si hay intersección, se toma el corte
+					//de menor distancia al objeto cercano	
+					} else {
+
+						var d0=Math.sqrt(in_root)/2.0;
+						var d1=-uoc+d0;
+						var d2=-uoc-d0;
+
+						if (d1<d2) {var df=d1;} else {var df=d2;}
+
+						transit_penumbra_data[cnt1]=new BABYLON.Vector3(pix+df*vix,piz+df*viz,piy+df*viy);
+						cnt1++;
+
+					}
+
+				}
+
+			}
 
 		}
 
-
+		//Función principal del cálculo de sombras
 		function calcula_sombras() {
 
 			var metodo_rayo=0;
@@ -4636,16 +5286,13 @@
 
 				}
 				
-
 				//console.log(i,planet_sat[i].length);
-
 
 				lines_umbra_pos[cnt]=new BABYLON.Vector3(NaN,NaN,NaN);
 				cnt++;
 				lines_penumbra_pos[cnt1]=new BABYLON.Vector3(NaN,NaN,NaN);
 				cnt1++;
 				
-
 				for (var ii=0;ii<planet_sat[i].length;ii++) {
 
 					var oi=planet_sat[i][ii];
@@ -4669,7 +5316,6 @@
 					lines_penumbra_pos[cnt1]=new BABYLON.Vector3(NaN,NaN,NaN);
 					cnt1++;
 					
-
 					for (jj=0;jj<planet_sat[i].length;jj++) {
 
 						var oj=planet_sat[i][jj];
@@ -4690,7 +5336,6 @@
 						if (oi==4 && oj==3) nn=200.0;
 						if (oi==3 && oj==4) nn=200.0;
 						if (oj==4) h_sombra=1.01;
-
 
 						lines_umbra_pos[cnt]=new BABYLON.Vector3(NaN,NaN,NaN);
 						cnt++;
@@ -4722,7 +5367,6 @@
 							viz=piz-poz;
 							vv=Math.sqrt(vix*vix+viy*viy+viz*viz);
 							vix/=vv;viy/=vv;viz/=vv;
-
 
 							if (metodo_rayo==0) {
 
@@ -4756,7 +5400,6 @@
 
 							}
 
-
 							if (metodo_rayo==1) {
 
 								origen1=new BABYLON.Vector3(pix,piz,piy);
@@ -4780,7 +5423,6 @@
 									rsz=planet_pos[oj].z+rsz*pr;
 									//console.log(oi,oj,rsx,rsy,rsz,cnt);
 
-					
 									lines_umbra_pos[cnt]=new BABYLON.Vector3(rsx,rsy,rsz);
 									cnt++;
 							
@@ -4789,11 +5431,9 @@
 									lines_umbra_pos[cnt]=new BABYLON.Vector3(NaN,NaN,NaN);
 									cnt++;
 								
-
 								} //  if disparo
 
 							}
-
 
 							//------
 
@@ -4813,7 +5453,6 @@
 							piy=planet_pos[oi].z+pr*(uy1*cos_ang1+uy2*sin_ang1);
 							piz=planet_pos[oi].y+pr*(uz1*cos_ang1+uz2*sin_ang1);
 
-							
 							vix=pix-pox;
 							viy=piy-poy;
 							viz=piz-poz;
@@ -4850,9 +5489,7 @@
 
 								}
 
-
 							}
-
 
 							if (metodo_rayo==1) {
 
@@ -4863,7 +5500,6 @@
 
 								var disparo=ray.intersectsMesh(sph1[oj])
 							
-
 								if (disparo.hit) {
 								
 									rsx=disparo.pickedPoint.x-planet_pos[oj].x;
@@ -4885,27 +5521,20 @@
 
 									lines_penumbra_pos[cnt1]=new BABYLON.Vector3(NaN,NaN,NaN);
 									cnt1++;
-								
 
 								} //  if disparo
 
 							}
 
-
-
 						} // kk
 
-
 					} // jj
-					
 
 				} // if ii
-
 
 			} // if i
 
 		}  // end function
-
 
 
 		function calc_lat_lon_pos() {
@@ -4915,8 +5544,8 @@
 			var radio1=planet_rad[pid]*i_ua_km;
 			var radio2=radio1*(1-planet_flat[pid]);
 			
-			radio1+=(lat_lon_alt+2)*i_ua_km;
-			radio2+=(lat_lon_alt+2)*i_ua_km;
+			radio1+=(lat_lon_alt+2*0)*i_ua_km;
+			radio2+=(lat_lon_alt+2*0)*i_ua_km;
 
 			var ang;
 			var x1,y1,z1;
@@ -4955,7 +5584,7 @@
 			y4=x3*sin_ang+y3*cos_ang;
 			z4=z3;
 
-			lat_lon_rad=planet_rad[pid]*i_ua_km/20.0;
+			lat_lon_rad=planet_rad[pid]*i_ua_km/10.0;
 			lat_lon_pos=new BABYLON.Vector3(planet_pos[pid].x+x4,planet_pos[pid].y+z4,planet_pos[pid].z+y4);
 
 			var d4=Math.sqrt(x4*x4+y4*y4+z4*z4);
@@ -5179,7 +5808,6 @@
 
 			//return;
 
-
 			var vref=planet_pos[planet_id].multiplyByFloats(1,1,1);
 
 			for (var ii=0;ii<n_objetos;ii++) {
@@ -5210,7 +5838,6 @@
 				s_o_1[ii][lo-1]=s_o_1[ii][2];
 
 			}
-
 
 			lat_lon_pos.subtractInPlace(vref);
 
@@ -5285,7 +5912,6 @@
 			shadowGenerator[0].removeShadowCaster(sph1[4],true);
 			shadowGenerator[0].addShadowCaster(fake_moon, true);
 			shadowGenerator[0].addShadowCaster(fake_earth, true);
-
 
 			shadowGenerator[0].removeShadowCaster(sph1[4],true);
 
@@ -5420,7 +6046,6 @@
 		}
 
 
-
 		//Obtiene el dia juliano (de efemerides)
 		//a partir de la fecha y la hora		
 		function calc_jd(fecha) {
@@ -5442,7 +6067,6 @@
 			var b=2-a+Math.floor(a/4.0);
 			var dia1=dia+hora/24.0+(minuto + segundo/60.0)/1440.0;
 			var jd=Math.floor(365.25*(ano+4716))+Math.floor(30.6001*(mes+1))+dia1+b-1524.5;
-
 
 			var DT=calc_dynamic_time(ano+mes/12);
 
@@ -5483,7 +6107,6 @@
 			}
 
 			var DT=calc_dynamic_time(ano+mes/12);
-
 
 			jd1=0.5+jd-DT/86400.0;
 			z=Math.floor(jd1);
@@ -5537,6 +6160,7 @@
 		//Calcula la posicion de todos los planetas y satelites
 		function calc_all_planets(jd) {
 
+			planet_pos1=[];
 			better_moon=1;
 
 			if (speed_light_correction==1) {var pos_earth=calc_planets(jd,3);}				
@@ -5557,13 +6181,15 @@
 			}
 
 			better_moon=0;
-
 		}
 
 
 		//Calcula las orbitas keplerianas de todos los planetas y satelites
 		//Usando el movimiento medio como referencia y paso temporal
 		function calc_orbits() {
+
+			var bp=better_planets;
+			better_planets=0;
 
 			var i_n_seg_orbsm1=1.0/(n_seg_orbs*1.0-1.0);
 
@@ -5624,6 +6250,7 @@
 
 					jd0=jd+j*dtt
 					xx=calc_planets(jd0,i);
+					if (j==0 && i<11) xx=planet_pos[i].add(new BABYLON.Vector3(0,0,0));
 
 					seg_orbs[i][j]=xx;
 					s_o_1[i][cn]=xx.x;cn++;
@@ -5638,12 +6265,51 @@
 
 			}
 
+			better_planets=bp*1.0;
 		}
 
+
+		//Transformación de precesión para coordenadas eclípticas
+		function j2000_to_epoch(lat00,lon00,jd_fe,jd_ie) {
+
+			var dtor=Math.PI/180;
+			var tt=(jd_fe-2451545.0)/36525.0;
+			var TT=(jd_ie-2451545.0)/36525.0;
+
+			var tt2=tt*tt;
+			var tt3=tt2*tt;
+			var TT2=TT*TT;
+			
+			var eta=(47.0029-0.06603*TT+0.000598*TT2)*tt+(-0.03302+0.000598*TT)*tt2+0.000060*tt3;
+			eta=eta/3600*dtor;
+			
+			var PI=174.876384*3600+3289.4789*TT+0.60622*TT2-(869.8089+0.50491*TT)*tt+0.03536*tt2;
+			PI=PI/3600*dtor;
+			
+			var p=(5029.0966+2.22226*TT-0.000042*TT2)*tt+(1.11113-0.000042*TT)*tt2-0.000006*tt3;
+			p=p/3600*dtor;
+			
+			var cos_lat=Math.cos(lat00);
+			var sin_lat=Math.sin(lat00);
+			var cos_eta=Math.cos(eta);
+			var sin_eta=Math.sin(eta);
+			var sin_PI_lon=Math.sin(PI-lon00);
+
+			var A=cos_eta*cos_lat*sin_PI_lon-sin_eta*sin_lat;
+			var B=cos_lat*Math.cos(PI-lon00);
+			var C=cos_eta*sin_lat+sin_eta*cos_lat*sin_PI_lon;
+			
+			corr_lat=Math.asin(C);
+			corr_lon=p+PI-Math.atan2(A,B);
+
+			return [corr_lat,corr_lon];
+			
+		}
 
 		//Calculo de la posicion ecliptica de los planetas y satelites
 		//mediante sus parametros orbitales keplerianos
 		//(en algunos casos) variables en el tiempo.
+		//Añadido PLAN404 y Aproximación al VSOP87
 		//Posiciones respecto a la epoca.
 
 		//Datos y parametros orbitales extraidos de:
@@ -5657,9 +6323,10 @@
 		//Satelites
 		//JPL Horizons y Astronomical Algorithms, pag. 301 (modificado por el autor)
 
-		function calc_planets(jd0,id) {
+		//PLAN404: Aproximación al DE404 por Steve Moshier -> http://moshier.net
+		//Aproximación al VSOP87: Extraída de Astronomical Algorithms, Jean Meeus, Apéndice.
 
-			var better_planets=0;
+		function calc_planets(jd0,id) {
 
 			var d2k=(jd0-2451543.5);
 
@@ -5678,44 +6345,15 @@
 			var T02=T0*T0;
 			var T03=T02*T0;
 
-			//Tierra
+			//La Tierra
 			if (id==3) {
 
-				
-				/*if (better_planets==1) {
-
-					var N_s1=0;
-					var L=100.466457 + 36000.7698278*T0 + 0.00030322*T02 + 0.000000020*T03;
-					var a_s1=1.000001018;
-					var e_s1=0.01670863 - 0.000042037*T0 - 0.0000001267*T02 + 0.00000000014*T03;
-					var i_s1=0;
-					var pis=102.937348 + 1.7195366*T0 + 0.00045688*T02 - 0.000000018*T03;
-					
-					var M_s1=L-pis;
-					var w_s1=pis-N_s1;
-
-				} else {*/
-
-					var N_s1=0;
-					var i_s1=0;
-					var w_s1=180+282.9404 + 4.70935E-5 * d2k;
-					var a_s1=1.0;
-					var e_s1=0.016709 - 1.151E-9 * d2k;
-					var M_s1= 356.0470 + 0.9856002585 * d2k;
-
-				//}
-
-				/*
 				var N_s1=0;
-				var L=100.466457 + 36000.7698278*T0 + 0.00030322*T02 + 0.000000020*T03;
-				var a_s1=1.000001018;
-				var e_s1=0.01670863 - 0.000042037*T0 - 0.0000001267*T02 + 0.00000000014*T03;
 				var i_s1=0;
-				var pis=102.937348 + 1.7195366*T0 + 0.00045688*T02 - 0.000000018*T03;
-				
-				var M_s1=L-pis;
-				var w_s1=pis-N_s1;
-				*/
+				var w_s1=180+282.9404 + 4.70935E-5 * d2k;
+				var a_s1=1.0;
+				var e_s1=0.016709 - 1.151E-9 * d2k;
+				var M_s1= 356.0470 + 0.9856002585 * d2k;
 
 				N_s1=N_s1*dtor;
 				i_s1=i_s1*dtor;
@@ -5731,7 +6369,35 @@
 				r_s1=Math.sqrt(xv_s1*xv_s1+yv_s1*yv_s1);
 				
 				var lonsun1=v_s1+w_s1;
+				var latsun1=0;
+
+				//Mejora de la posición de La Tierra basado en aproximaciones
+				//de404 (plan404 de Steve Moshier)
+				//vsop87 (terminos publicados en el apéndice de Atronomical Algorithms, Jean Meeus)
+				if (better_planets==1) {
+
+					if (plan404==1) {
+
+						var ecl_pars=de404_earth_pos(jd0);
+
+						r_s1=ecl_pars[0];
+						lonsun1=ecl_pars[1];
+						latsun1=ecl_pars[2];
+
+					}
+					if (vsop87==1) {
+
+						var ecl_pars=vsop87_planet_pos(jd0,id);
+
+						r_s1=ecl_pars[0];
+						lonsun1=ecl_pars[1];
+						latsun1=ecl_pars[2];
+
+					}
+				}
+
 				
+				//!!!Falta la latitud ecliptica de La Tierra (O_o)
 				var xs_s1=r_s1*Math.cos(lonsun1)*1;
 				var ys_s1=r_s1*Math.sin(lonsun1)*1;
 				var zs_s1=0*1;
@@ -5744,39 +6410,20 @@
 			//Luna
 			if (id==4) {
 
-				/*if (better_planets==1) {
-
-					var N_s=0;
-					var L=100.466457 + 36000.7698278*T0 + 0.00030322*T02 + 0.000000020*T03;
-					var a_s=1.000001018;
-					var e_s=0.01670863 - 0.000042037*T0 - 0.0000001267*T02 + 0.00000000014*T03;
-					var i_s=0;
-					var pis=102.937348 + 1.7195366*T0 + 0.00045688*T02 - 0.000000018*T03;
-					
-					var M_s=L-pis;
-					var w_s=pis-N_s;
-
-				} else {*/
-
-					var N_s=0;
-					var i_s=0;
-					var w_s=180+282.9404 + 4.70935E-5 * d2k;
-					var a_s=1.0;
-					var e_s=0.016709 - 1.151E-9 * d2k;
-					var M_s= 356.0470 + 0.9856002585 * d2k;
-
-				//}
-
+				var N_s=0;
+				var i_s=0;
+				var w_s=180+282.9404 + 4.70935E-5 * d2k;
+				var a_s=1.0;
+				var e_s=0.016709 - 1.151E-9 * d2k;
+				var M_s= 356.0470 + 0.9856002585 * d2k;
 
 				var N_s=N_s*dtor;
 				var i_s=i_s*dtor;
 				var w_s=w_s*dtor;
 				var M_s=M_s*dtor;
-
 				
 				var xs1=planet_pos[planet_parent[id]].x;
 				var ys1=planet_pos[planet_parent[id]].z;
-
 
 				var N_p=125.1228 - 0.0529538083 * d2k;
 				var i_p=5.1454;
@@ -5818,7 +6465,6 @@
 				var xh_p = r_p * ( cos_N_pe * cos_v_w_pe - sin_N_pe * sin_v_w_pe * cos_i_pe );
 				var yh_p = r_p * ( sin_N_pe * cos_v_w_pe + cos_N_pe * sin_v_w_pe * cos_i_pe );
 				var zh_p = r_p * ( sin_v_w_pe * sin_i_pe );
-
 
 				var lonecl_p=Math.atan2(yh_p,xh_p);
 				var latecl_p=Math.atan2(zh_p,Math.sqrt(xh_p*xh_p+yh_p*yh_p));
@@ -5864,9 +6510,10 @@
 				latecl_p=latecl_p+lat_m_corr*dtor;
 				r_p=r_p+r_m_corr;
 
-
 				var ss=6371/149597870.691;
 
+				//Calculo de precisión de posición de La Luna
+				//basado en la teoría ELP2000/85 de Chapront-Touzé
 				if (better_moon==1) {
 
 					var nvals2=60;
@@ -5880,7 +6527,6 @@
 					var mp_lng = [1,-1,0,2,0,0,-2,-1,1,0,-1,0,1,0,1,1,-1,3,-2,-1,0,-1,0,1,2,0,-3,-2,-1,-2,1,0,2,0,-1,1,0,-1,2,-1,1,-2,-1,-1,-2,0,1,4,0,-2,0,2,1,-2,-3,2,1,-1,3,-1];
 					var f_lng = [0,0,0,0,0,2,0,0,0,0,0,0,0,-2,2,-2,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,-2,2,0,2,0,0,0,0,0,0,-2,0,0,0,0,-2,-2,0,0,0,0,0,0,0,-2];
 
-
 					var sin_lng = [6288774,1274027,658314,213618,-185116,-114332,58793,57066,53322,
 					45758,-40923,-34720,-30383,15327,-12528,10980,10675,10034,8548,-7888,-6766,
 					-5163,4987,4036,3994,3861,3665,-2689,-2602,2390,-2348,2236,-2120,-2069,2048,
@@ -5893,7 +6539,6 @@
 					-9884,5751,0,-4950,4130,0,-3958,0,3258,2616,-1897,-2117,2354,0,0,-1423,
 					-1117,-1571,-1739,0,-4421,0,0,0,0,1165,0,0,8752.0];
 
-
 					var d_lat = [0,0,0,2,2,2,2,0,2,0,2,2,2,2,2,2,2,0,4,0,0,0,1,0,0,0,1,0,4,4,0,4,2,2,2,2,0,2,2,2,2,4,2,2,0,2,1,1,0,2,1,2,0,4,4,1,4,1,4,2];
 					var m_lat = [0,0,0,0,0,0,0,0,0,0,-1,0,0,1,-1,-1,-1,1,0,1,0,1,0,1,1,1,0,0,0,0,0,0,0,0,-1,0,0,0,0,1,1,0,-1,-2,0,1,1,1,1,1,0,-1,1,0,-1,0,0,0,-1,-2];
 					var mp_lat =[0,1,1,0,-1,-1,0,2,1,2,0,-2,1,0,-1,0,-1,-1,-1,0,0,-1,0,1,1,0,0,3,0,-1,1, -2,0,2,1,-2,3,2,-3,-1,0,0,1,0,1,1,0,0,-2,-1,1,-2,2,-2,-1,1,1,-1,0,0];
@@ -5905,24 +6550,20 @@
 					421,-366,-351,331,315,302,-283,-229,223,223,-220,-220,-185,181,-177,176,
 					166,-164,132,-119,115,107.0];
 
-
 					var Lprime =218.3164477 + t*481267.88123421 - t2*0.0015786 + t3*1.0/538841.0 - t4*1.0/(6.5194e7);Lprime=Lprime*dtor;
 					var D= 297.8501921 + t*445267.1114034 - t2*0.0018819 + t3*1.0/545868.0 - t4*1.0/(1.13065e8);D=D*dtor;
 					var M = 357.5291092 + t*35999.0502909 - t2*0.0001536 + t3*1.0/(2.449e7);M = M*dtor;
 					var Mprime = 134.9633964 + t*477198.8675055 + t*t*0.0087414 + t*t*t*1.0/(6.9699e4) - t4*1.0/(1.4712e7);Mprime = Mprime*dtor;
 					var F = 93.2720950 + t*483202.0175233 - t2*0.0036539 - t3*1.0/(3.526e7*0+3526000) + t4*1.0/(8.6331e8);F = F*dtor;
-					
 
 					var E = 1.0 - 0.002516*t - 7.4e-6*t2;
 					var E2 = E*E;
-
 
 					var A1 = (119.75 + 131.849*t) * dtor;
 					var A2 = (53.09 + 479264.290*t) * dtor;
 					var A3 = (313.45 + 481266.484*t) * dtor;
 					var suml_add = 3958*Math.sin(A1) + 1962*Math.sin(Lprime - F) + 318*Math.sin(A2);
 					var sumb_add =  -2235*Math.sin(Lprime) + 382*Math.sin(A3) + 175*Math.sin(A1-F) + 175*Math.sin(A1 + F) + 127*Math.sin(Lprime - Mprime) -115*Math.sin(Lprime + Mprime);
-
 
 					var dlon=0;
 					var drad=0;
@@ -5938,7 +6579,6 @@
 						if (m_lng[i]==2) corr=E2;
 						if (m_lng[i]==-2) corr=E2;
 	
-
 						argumento=D*d_lng[i]+M*m_lng[i]+Mprime*mp_lng[i]+F*f_lng[i];
 						dlon+=corr*sin_lng[i]*Math.sin(argumento);
 						drad+=corr*cos_lng[i]*Math.cos(argumento);
@@ -5954,14 +6594,12 @@
 
 					}
 
-
 					dlon+=suml_add;
 					dlat+=sumb_add;
 
 					lonecl_p=Lprime+(dlon/(1e6))*dtor;
 					latecl_p=(dlat/(1e6))*dtor;
 					r_p=(385000.56+drad/(1e3))/149597870.691;
-
 
 					var nut_L=(280.4665+36000.7698*t)*dtor;
 					var nut_Lp=(218.3165+481267.8813*t)*dtor;
@@ -5971,60 +6609,36 @@
 					/*var nut_delta_ecl=(9.2*Math.cos(nut_omega)+0.57*Math.cos(2*nut_L)
 											+0.1*Math.cos(2*nut_Lp)-0.09*Math.cos(2*nut_omega))/3600.0*dtor;*/
 
-
 					lonecl_p=lonecl_p-nut_delta_phi;
 					ss=1;
 
-
 				}
-
 
 				var cos_lonecl_p=Math.cos(lonecl_p);
 				var sin_lonecl_p=Math.sin(lonecl_p);
 				var cos_latecl_p=Math.cos(latecl_p);
 				var sin_latecl_p=Math.sin(latecl_p);
 
-
 				xh_p = r_p * cos_lonecl_p * cos_latecl_p*ss+xs1;
 				yh_p = r_p * sin_lonecl_p * cos_latecl_p*ss+ys1;
 				zh_p = r_p * sin_latecl_p * 1*ss;
-
 
 				//xh_p=0;yh_p=0;zh_p=0;
 				xx=new BABYLON.Vector3(xh_p,zh_p,yh_p);
 				return xx;
 				
-
 			}
 
 
 			//Mercuio
 			if (id==1) {
 
-				
-				/*if (better_planets==1) {
-
-					var L = 252.250906 + 149474.0722491*T0 + 0.00030350*T02 + 0.000000018*T03;
-					var a_pe = 0.387098310;
-					var e_pe = 0.20563175 + 0.000020407*T0 - 0.0000000283*T02 - 0.00000000018*T03;
-					var i_pe = 7.004986 + 0.0018215*T0 - 0.00001810*T02 + 0.000000056*T03;
-					var N_pe = 48.330893 + 1.1861883*T0 + 0.00017542*T02 + 0.000000215*T03;
-					var pis = 77.456119 + 1.5564776*T0 + 0.00029544*T02 + 0.000000009*T03; 
-
-					var M_pe=L-pis;
-					var w_pe=pis-N_pe;
-
-				} else {*/
-
-					var N_pe =  48.3313 + 3.24587E-5 * d2k;
-					var i_pe = 7.0047 + 5.00E-8 * d2k;
-					var w_pe =  29.1241 + 1.01444E-5 * d2k;
-					var a_pe = 0.387098  ;
-					var e_pe = 0.205635 + 5.59E-10 * d2k;
-					var M_pe = 168.6562 + 4.0923344368 * d2k;
-
-				//}
-
+				var N_pe =  48.3313 + 3.24587E-5 * d2k;
+				var i_pe = 7.0047 + 5.00E-8 * d2k;
+				var w_pe =  29.1241 + 1.01444E-5 * d2k;
+				var a_pe = 0.387098  ;
+				var e_pe = 0.205635 + 5.59E-10 * d2k;
+				var M_pe = 168.6562 + 4.0923344368 * d2k;
 
 			}
 
@@ -6032,61 +6646,25 @@
 			//Venus
 			if (id==2) {
 
-				
-				/*if (better_planets==1) {
-
-					var L = 181.979801 + 58519.2130302*T0 + 0.00031014*T02 + 0.000000015*T03;
-					var a_pe = 0.723329820;
-					var e_pe = 0.00677192 - 0.000047765*T0 + 0.0000000981*T02 + 0.00000000046*T03;
-					var i_pe = 3.394662 + 0.0010037*T0 - 0.00000088*T02 - 0.000000007*T03;
-					var N_pe = 76.679920 + 0.9011206*T0 + 0.00040618*T02 - 0.000000093*T03;
-					var pis = 131.563703 + 1.4022288*T0 - 0.00107618*T02 - 0.000005678*T03;
-					
-					var M_pe=L-pis;
-					var w_pe=pis-N_pe;
-
-				} else {*/
-
-					var N_pe =  76.6799 + 2.46590E-5 * d2k;
-					var i_pe = 3.3946 + 2.75E-8 * d2k;
-					var w_pe =  54.8910 + 1.38374E-5 * d2k;
-					var a_pe = 0.723330  ;
-					var e_pe = 0.006773 - 1.302E-9 * d2k;
-					var M_pe =  48.0052 + 1.6021302244 * d2k;
-
-				//}
-
+				var N_pe =  76.6799 + 2.46590E-5 * d2k;
+				var i_pe = 3.3946 + 2.75E-8 * d2k;
+				var w_pe =  54.8910 + 1.38374E-5 * d2k;
+				var a_pe = 0.723330  ;
+				var e_pe = 0.006773 - 1.302E-9 * d2k;
+				var M_pe =  48.0052 + 1.6021302244 * d2k;
 
 			}
 
 
 			//Marte
 			if (id==5) {
-				
-				
-				/*if (better_planets==1) {
 
-					var L = 355.433000 + 19141.6964471*T0 + 0.00031052*T02 + 0.000000016*T03;
-					var a_pe = 1.523679342;
-					var e_pe = 0.09340065 + 0.000090484*T0 - 0.0000000806*T02 - 0.00000000025*T03;
-					var i_pe = 1.849726 - 0.0006011*T0 + 0.00001276*T02 - 0.00000000025*T03;
-					var N_pe = 49.558093 + 0.7720959*T0 + 0.00001557*T02 + 0.000002267*T03;
-					var pis = 336.060234 + 1.8410449*T0 + 0.00013477*T02 + 0.000000536*T03;						
-
-					var M_pe=L-pis;
-					var w_pe=pis-N_pe;
-
-				} else {*/
-
-					var N_pe =  49.5574 + 2.11081E-5 * d2k;
-					var i_pe = 1.8497 - 1.78E-8 * d2k;
-					var w_pe = 286.5016 + 2.92961E-5 * d2k;
-					var a_pe = 1.523688  ;
-					var e_pe = 0.093405 + 2.516E-9 * d2k;
-					var M_pe =  18.6021 + 0.5240207766 * d2k;
-
-				//}
-
+				var N_pe =  49.5574 + 2.11081E-5 * d2k;
+				var i_pe = 1.8497 - 1.78E-8 * d2k;
+				var w_pe = 286.5016 + 2.92961E-5 * d2k;
+				var a_pe = 1.523688  ;
+				var e_pe = 0.093405 + 2.516E-9 * d2k;
+				var M_pe =  18.6021 + 0.5240207766 * d2k;				
 
 			}
 
@@ -6094,30 +6672,12 @@
 			//Jupiter
 			if (id==6) {
 
-				
-				/*if (better_planets==1) {
-
-					var L = 34.351519 + 3036.3027748*T0 + 0.00022330*T02 + 0.000000037*T03;
-					var a_pe = 5.202603209 + 0.0000001913*T0;
-					var e_pe = 0.04849793 + 0.000163225*T0 - 0.0000004714*T02 - 0.00000000201*T03;
-					var i_pe = 1.303267 - 0.0054965*T0 + 0.00000466*T02 - 0.000000002*T03;
-					var N_pe = 100.464407 + 1.0209774*T0 + 0.00040315*T02 + 0.000000404*T03;
-					var pis = 14.331207 + 1.6126352*T0 + 0.00103042*T02 - 0.000004464*T03;						
-
-					var M_pe=L-pis;
-					var w_pe=pis-N_pe;
-
-				} else {*/
-
-					var N_pe = 100.4542 + 2.76854E-5 * d2k;
-					var i_pe = 1.3030 - 1.557E-7 * d2k;
-					var w_pe = 273.8777 + 1.64505E-5 * d2k;
-					var a_pe = 5.20256  ;
-					var e_pe = 0.048498 + 4.469E-9 * d2k;
-					var M_pe =  19.8950 + 0.0830853001 * d2k;
-
-				//}
-
+				var N_pe = 100.4542 + 2.76854E-5 * d2k;
+				var i_pe = 1.3030 - 1.557E-7 * d2k;
+				var w_pe = 273.8777 + 1.64505E-5 * d2k;
+				var a_pe = 5.20256  ;
+				var e_pe = 0.048498 + 4.469E-9 * d2k;
+				var M_pe =  19.8950 + 0.0830853001 * d2k;
 
 			}
 
@@ -6125,60 +6685,25 @@
 			//Saturno
 			if (id==7) {
 
-
-				/*if (better_planets==1) {
-
-					var L = 50.077444 + 1223.5110686*T0 + 0.00051908*T02 - 0.000000030*T03;
-					var a_pe = 9.554909192 - 0.0000021390*T0 +0.000000004*T02;
-					var e_pe = 0.00554814 - 0.000346641*T0 - 0.0000006436*T02 + 0.00000000340*T03;
-					var i_pe = 2.488879 - 0.0037362*T0 - 0.00001519*T02 + 0.000000087*T03;
-					var N_pe = 113.665503 + 0.8770880*T0 - 0.00012176*T02 - 0.000002249*T03;
-					var pis = 93.057237 + 1.9637613*T0 + 0.00083753*T02 + 0.000004928*T03;						
-
-					var M_pe=L-pis;
-					var w_pe=pis-N_pe;
-
-				} else {*/
-
-					var N_pe = 113.6634 + 2.38980E-5 * d2k;
-					var i_pe = 2.4886 - 1.081E-7 * d2k;
-					var w_pe = 339.3939 + 2.97661E-5 * d2k;
-					var a_pe = 9.55475  ;
-					var e_pe = 0.055546 - 9.499E-9 * d2k;
-					var M_pe = 316.9670 + 0.0334442282 * d2k;
-
-				//}
-
+				var N_pe = 113.6634 + 2.38980E-5 * d2k;
+				var i_pe = 2.4886 - 1.081E-7 * d2k;
+				var w_pe = 339.3939 + 2.97661E-5 * d2k;
+				var a_pe = 9.55475  ;
+				var e_pe = 0.055546 - 9.499E-9 * d2k;
+				var M_pe = 316.9670 + 0.0334442282 * d2k;
 
 			}
 
 
 			//Urano
 			if (id==8) {
-
-
-				/*if (better_planets==1) {
-
-					var L = 314.055005+429.8640561*T0 + 0.0030390*T02 + 0.000000026*T03;
-					var a_pe = 19.218446062 - 0.0000000372*T0 + 0.00000000098*T02;
-					var e_pe = 0.04638122 - 0.000027293*T0 + 0.0000000789*T02 + 0.00000000024*T03;
-					var i_pe = 0.773197 + 0.0007744*T0 + 0.00003749*T02 - 0.000000092*T03;
-					var N_pe = 74.005957 + 0.5211278*T0 + 0.00133947*T02 + 0.000018484*T03;
-					var pis = 173.005291 + 1.4863790*T0 + 0.00021406*T02 + 0.000000434*T03;						
-
-					var M_pe=L-pis;
-					var w_pe=pis-N_pe;
-
-				} else {*/
-					
-					var N_pe =  74.0005 + 1.3978E-5 * d2k;
-					var i_pe = 0.7733 + 1.9E-8 * d2k;
-					var w_pe =  96.6612 + 3.0565E-5 * d2k;
-					var a_pe = 19.18171 - 1.55E-8 * d2k;
-					var e_pe = 0.047318 + 7.45E-9 * d2k;
-					var M_pe = 142.5905 + 0.011725806 * d2k;
-
-				//}
+	
+				var N_pe =  74.0005 + 1.3978E-5 * d2k;
+				var i_pe = 0.7733 + 1.9E-8 * d2k;
+				var w_pe =  96.6612 + 3.0565E-5 * d2k;
+				var a_pe = 19.18171 - 1.55E-8 * d2k;
+				var e_pe = 0.047318 + 7.45E-9 * d2k;
+				var M_pe = 142.5905 + 0.011725806 * d2k;				
 
 			}
 
@@ -6186,30 +6711,12 @@
 			//Neptuno
 			if (id==9) {
 
-
-				/*if (better_planets==1) {
-
-					var L = 304.348665 + 219.8833092*T0 + 0.00030882*T02 + 0.000000018*T03;
-					var a_pe = 30.110386869 - 0.0000001663*T0 + 0.00000000069*T02;
-					var e_pe = 0.00945575 + 0.000006033*T0 + 0.000000000*T02 - 0.00000000005*T03;
-					var i_pe = 1.769953 - 0.0093082*T0 - 0.00000708*T02 + 0.000000027*T03;
-					var N_pe = 131.784057 + 1.1022039*T0 + 0.00025952*T02 - 0.000000637*T03;
-					var pis = 48.120276 + 1.4262957*T0 + 0.00038434*T02 + 0.000000020*T03;
-
-					var M_pe=L-pis;
-					var w_pe=pis-N_pe;
-
-				} else {*/
-
-					var N_pe = 131.7806 + 3.0173E-5 * d2k;
-					var i_pe = 1.7700 - 2.55E-7 * d2k;
-					var w_pe = 272.8461 - 6.027E-6 * d2k;
-					var a_pe = 30.05826 + 3.313E-8 * d2k;
-					var e_pe = 0.008606 + 2.15E-9 * d2k;
-					var M_pe = 260.2471 + 0.005995147 * d2k;
-
-				//}
-
+				var N_pe = 131.7806 + 3.0173E-5 * d2k;
+				var i_pe = 1.7700 - 2.55E-7 * d2k;
+				var w_pe = 272.8461 - 6.027E-6 * d2k;
+				var a_pe = 30.05826 + 3.313E-8 * d2k;
+				var e_pe = 0.008606 + 2.15E-9 * d2k;
+				var M_pe = 260.2471 + 0.005995147 * d2k;
 
 			}
 
@@ -6228,7 +6735,6 @@
 			}
 
 			var d2k2=jd0-2451544.5;
-
 
 			//Mars
 			//Phobos
@@ -6255,7 +6761,6 @@
 
 			}
 
-
 			//Jupiter
 			//Io
 			if (id==13) {
@@ -6269,7 +6774,6 @@
 
 			}
 
-
 			//Europa
 			if (id==14) {
 		
@@ -6281,7 +6785,6 @@
 				var M_pe = 2.935888371825263E+02+101.3747242*d2k2;
 
 			}
-
 
 			//Ganimedes
 			if (id==15) {
@@ -6295,7 +6798,6 @@
 
 			}
 
-			
 			//Calixto
 			if (id==16) {
 
@@ -6307,8 +6809,6 @@
 				M_pe = 7.414059442296413E+01+21.5710728*d2k2;
 
 			}
-
-
 
 			//Saturn
 			//Mimas
@@ -6324,7 +6824,6 @@
 				
 			}
 
-
 			//Enceladus
 			if (id==18) {
 
@@ -6336,7 +6835,6 @@
 				M_pe = 2.356731393892689E+02+262.7318978*d2k2;
 
 			}
-
 
 			//Thetys
 			if (id==19) {
@@ -6350,7 +6848,6 @@
 
 			}
 
-
 			//Dione
 			if (id==20) {
 
@@ -6362,7 +6859,6 @@
 				M_pe = 2.803956993515679E+02+131.5349307*d2k2;
 
 			}
-
 
 			//Rhea
 			if (id==21) {
@@ -6376,7 +6872,6 @@
 
 			}
 
-
 			//Titan
 			if (id==22) {
 
@@ -6388,7 +6883,6 @@
 				M_pe = 1.521382513926225E+02+22.5769756*d2k2;
 
 			}
-
 
 			//Hyperion
 			if (id==23) {
@@ -6402,7 +6896,6 @@
 
 			}
 
-
 			//Japetus
 			if (id==24) {
 
@@ -6415,7 +6908,6 @@
 
 			}
 
-
 			//Phoebe
 			if (id==25) {
 
@@ -6427,7 +6919,6 @@
 				M_pe = 5.818010827278169E+01+0.6569114*d2k2;
 
 			}
-
 
 			//Janus
 			if (id==26) {
@@ -6442,7 +6933,6 @@
 			}
 
 			//Uranus				
-
 			//Ariel
 			if (id==27) {
 
@@ -6454,7 +6944,6 @@
 				M_pe = 7.697066616582393E+01+142.8356579*d2k2;
 
 			}
-
 
 			//Umbriel			
 			if (id==28) {
@@ -6468,7 +6957,6 @@
 
 			}
 
-
 			//Titania
 			if (id==29) {
 
@@ -6480,7 +6968,6 @@
 				M_pe = 5.431281239747835E+01+41.3514246*d2k2;
 
 			}
-
 
 			//Oberon
 			if (id==30) {
@@ -6494,7 +6981,6 @@
 
 			}
 
-			
 			//Miranda
 			if (id==31) {
 
@@ -6506,7 +6992,6 @@
 				M_pe = 3.004895617262656E+02+254.6906576*d2k2;
 
 			}
-
 
 			//Neptuno
 			//Triton
@@ -6521,7 +7006,6 @@
 
 			}
 
-
 			//Nereid
 			if (id==33) {
 
@@ -6534,7 +7018,6 @@
 
 			}
 
-
 			//Proteus
 			if (id==34) {
 
@@ -6546,7 +7029,6 @@
 				M_pe = 1.747354279210575E+02+320.7656245*d2k2;
 
 			}
-
 
 			//Plutp
 			//Charon
@@ -6561,12 +7043,9 @@
 
 			}
 
-
-
 			var Mj=(19.8950 + 0.0830853001 * d2k)*dtor;
 			var Ms=(316.9670 + 0.0334442282 * d2k)*dtor;
 			var Mu=(142.5905 + 0.011725806 * d2k)*dtor;
-
 
 			N_pe=N_pe*dtor;
 			i_pe=i_pe*dtor;
@@ -6585,7 +7064,6 @@
 			var v_pe=Math.atan2(yv_pe,xv_pe);
 			var r_pe=Math.sqrt(xv_pe*xv_pe+yv_pe*yv_pe);
 
-
 			var cos_N_pe=Math.cos(N_pe);
 			var sin_N_pe=Math.sin(N_pe);
 			var cos_v_w_pe=Math.cos(v_pe+w_pe);
@@ -6596,7 +7074,6 @@
 			var xh_pe = r_pe * ( cos_N_pe * cos_v_w_pe - sin_N_pe * sin_v_w_pe * cos_i_pe );
 			var yh_pe = r_pe * ( sin_N_pe * cos_v_w_pe + cos_N_pe * sin_v_w_pe * cos_i_pe );
 			var zh_pe = r_pe * ( sin_v_w_pe * sin_i_pe );
-
 
 			var lonecl_pe=Math.atan2(yh_pe,xh_pe);
 			var latecl_pe=Math.atan2(zh_pe,Math.sqrt(xh_pe*xh_pe+yh_pe*yh_pe));
@@ -6633,7 +7110,6 @@
 					+0.018 * Math.sin(2*Mj - 6*Ms - 49*dtor);
 
 			}
-
 			
 			if (id==8) {
 
@@ -6645,7 +7121,6 @@
 					lat_m_corr=0;
 
 			}
-
 
 			if (id==-10) {
 
@@ -6681,17 +7156,39 @@
 				lonecl_pe*=dtor;
 				latecl_pe*=dtor;
 
-
 			}
 
 			var xs1=planet_pos[planet_parent[id]].x;
 			var ys1=planet_pos[planet_parent[id]].z;
 			var zs1=planet_pos[planet_parent[id]].y;
 
-
 			lonecl_pe=lonecl_pe+lon_m_corr*dtor;
 			latecl_pe=latecl_pe+lat_m_corr*dtor;
 
+			//Cálculo de precisión para las posiciones de los planetas
+			//basado en una aproximación al DE404 (plan404) y al VSOP87
+			if (better_planets==1 && id>0 && id<11 && id!=3 && id!=4) {
+
+				if (plan404==1) {
+					var ecl_pars=de404_planet_pos(jd0,id);
+					r_pe=ecl_pars[0];
+					lonecl_pe=ecl_pars[1];
+					latecl_pe=ecl_pars[2];
+				}
+				if (vsop87==1 && id!=10) {
+					var ecl_pars=vsop87_planet_pos(jd0,id);
+					r_pe=ecl_pars[0];
+					lonecl_pe=ecl_pars[1];
+					latecl_pe=ecl_pars[2];
+				}
+				if (vsop87==1 && id==10) {
+					var ecl_pars=de404_planet_pos(jd0,id);
+					r_pe=ecl_pars[0];
+					lonecl_pe=ecl_pars[1];
+					latecl_pe=ecl_pars[2];
+				}
+
+			}
 
 			var cos_lonecl_pe=Math.cos(lonecl_pe);
 			var sin_lonecl_pe=Math.sin(lonecl_pe);
@@ -6701,7 +7198,6 @@
 			xh_pe = r_pe * cos_lonecl_pe * cos_latecl_pe + xs1;
 			yh_pe = r_pe * sin_lonecl_pe * cos_latecl_pe + ys1;
 			zh_pe = r_pe * sin_latecl_pe + zs1;
-
 
 			xx=new BABYLON.Vector3(xh_pe,zh_pe,yh_pe);
 
@@ -6733,13 +7229,11 @@
 
 				var re=new BABYLON.Vector3(0,0,0);
 
-				
 				re.x=planet_pos[6].x-planet_pos[3].x;
 				re.y=planet_pos[6].z-planet_pos[3].z;
 				re.z=planet_pos[6].y-planet_pos[3].y;
 				re.normalize();
 				
-
 				u1.x=-(u3.y*re.z-re.y*u3.z);
 				u1.y=+(u3.x*re.z-re.x*u3.z);
 				u1.z=-(u3.x*re.y-re.x*u3.y);
@@ -6792,13 +7286,6 @@
 					var arg=2*ua1-2*ua2;
 					var u=ua1+0.473*Math.sin(arg)*dtor;
 					var rad=planet_rad[6]*i_ua_km*(5.9057-0.0244*Math.cos(arg));
-					var cosu=Math.cos(u);
-					var sinu=Math.sin(u);
-					var px=rad*(u1.x*sinu-u2.x*cosu);
-					var py=rad*(u1.y*sinu-u2.y*cosu);
-					var pz=rad*(u1.z*sinu-u2.z*cosu);
-			
-					xx=new BABYLON.Vector3(planet_pos[6].x+px,planet_pos[6].y+pz,planet_pos[6].z+py);
 
 				}
 
@@ -6807,13 +7294,6 @@
 					var arg=2*ua2-2*ua3;
 					var u=ua2+1.065*Math.sin(arg)*dtor;
 					var rad=planet_rad[6]*i_ua_km*(9.3966-0.0882*Math.cos(arg));
-					var cosu=Math.cos(u);
-					var sinu=Math.sin(u);
-					var px=rad*(u1.x*sinu-u2.x*cosu);
-					var py=rad*(u1.y*sinu-u2.y*cosu);
-					var pz=rad*(u1.z*sinu-u2.z*cosu);
-
-					xx=new BABYLON.Vector3(planet_pos[6].x+px,planet_pos[6].y+pz,planet_pos[6].z+py);
 
 				}
 
@@ -6822,13 +7302,6 @@
 					var arg=G*dtor;
 					var u=ua3+0.165*Math.sin(arg)*dtor;
 					var rad=planet_rad[6]*i_ua_km*(14.9883-0.0216*Math.cos(arg));
-					var cosu=Math.cos(u);
-					var sinu=Math.sin(u);
-					var px=rad*(u1.x*sinu-u2.x*cosu);
-					var py=rad*(u1.y*sinu-u2.y*cosu);
-					var pz=rad*(u1.z*sinu-u2.z*cosu);
-
-					xx=new BABYLON.Vector3(planet_pos[6].x+px,planet_pos[6].y+pz,planet_pos[6].z+py);
 
 				}
 
@@ -6837,17 +7310,16 @@
 					var arg=H*dtor;
 					var u=ua4+0.843*Math.sin(arg)*dtor;
 					var rad=planet_rad[6]*i_ua_km*(26.3627-0.1939*Math.cos(arg));
-					var cosu=Math.cos(u);
-					var sinu=Math.sin(u);
-					var px=rad*(u1.x*sinu-u2.x*cosu);
-					var py=rad*(u1.y*sinu-u2.y*cosu);
-					var pz=rad*(u1.z*sinu-u2.z*cosu);
-
-					xx=new BABYLON.Vector3(planet_pos[6].x+px,planet_pos[6].y+pz,planet_pos[6].z+py);
 
 				}
 
+				var cosu=Math.cos(u);
+				var sinu=Math.sin(u);
+				var px=rad*(u1.x*sinu-u2.x*cosu);
+				var py=rad*(u1.y*sinu-u2.y*cosu);
+				var pz=rad*(u1.z*sinu-u2.z*cosu);
 
+				xx=new BABYLON.Vector3(planet_pos[6].x+px,planet_pos[6].y+pz,planet_pos[6].z+py);
 			}
 
 
@@ -6900,9 +7372,7 @@
 				//u2.x/=u2m;u2.y/=u2m;u2.z/=u2m;
 				u2.normalize();
 
-				
 				var RAD = 180 / Math.PI;
-
 
 				var T = (jd0 - 2415020.0) / 36525;
 				var T1 = T - Math.floor(T);
@@ -6922,7 +7392,6 @@
 				var L6 = (266.564 + 1080 * T1 + 143.509884 * T) / RAD + C6;
 				var A6 = 9.554747;
 				var B6 = 2.49 / RAD * Math.sin(L6 - (112.79 + 0.87 * T) / RAD);
-
 
 				var K = L0 - L6;
 				var D1 = Math.sqrt(A6 * A6 + 1 - 2 * A6 * Math.cos(K));
@@ -6948,7 +7417,6 @@
 
 				//speed-light correction
 				var LT = D1 / (173 * 36525)*0; 
-
 
 				var I6 = 28.08 / RAD;
 
@@ -6991,13 +7459,11 @@
 				var O5 = (101.37 + 2910600 * TA + 80.467853 * TB) / RAD;
 				var O6 = (271.66 + 824400 * TA + 225.475797 * TB) / RAD;
 
-
 				O2 = O2 - N6 + W6+Math.PI;
 				O3 = O3 - N6 + W6+Math.PI;
 				O4 = O4 - N6 + W6+Math.PI;
 				O5 = O5 - N6 + W6+Math.PI;
 				O6 = O6 - N6 + W6+Math.PI;
-
 
 				if (id==18) {
 
@@ -7069,8 +7535,6 @@
 
 				}
 
-				
-
 			}
 
 
@@ -7096,7 +7560,6 @@
 				var s2=Math.sin((168.8112+slambda0/dtor+269)*dtor);
 				var c2=Math.cos((168.8112+slambda0/dtor+269)*dtor);
 
-				
 				var sL=127.64+381.994497*st1-43.57*Math.sin(sW0)-0.720*Math.sin(3*sW0)-0.02144*Math.sin(5*sW0); sL*=dtor;
 				var sp=106.1+365.549*st2;sp*=dtor;
 				var sM=sL-sp;
@@ -7108,15 +7571,12 @@
 				var sgamma=1.563*dtor;
 				var sOMEGA=54.5-365.072*st2;sOMEGA*=dtor;
 
-				
 				var su=slambda-sOMEGA;
 				var sw=sOMEGA-(168.8112)*dtor;
-
 				
 				var sx1=sr*(Math.cos(su)*Math.cos(sw)-Math.sin(su)*Math.cos(sgamma)*Math.sin(sw));
 				var sy1=sr*(Math.sin(su)*Math.cos(sw)*Math.cos(sgamma)+Math.cos(su)*Math.sin(sw));
 				var sz1=sr*Math.sin(su)*Math.sin(sgamma);
-
 
 				var sA1=sx1;
 				var sB1=c1*sy1-s1*sz1;
@@ -7126,7 +7586,6 @@
 				var sB2=s2*sA1+c2*sB1;
 				var sC2=sC1;
 
-				
 				var sA3=sA2*Math.sin(slambda0)-sB2*Math.cos(slambda0);
 				var sB3=sA2*Math.cos(slambda0)+sB2*Math.sin(slambda0);
 				var sC3=sC2;
@@ -7135,20 +7594,13 @@
 				var sB4=sB3*Math.cos(sbeta0)+sC3*Math.sin(sbeta0);
 				var sC4=sC3*Math.cos(sbeta0)-sB3*Math.sin(sbeta0);
 
-
 				xx=new BABYLON.Vector3(planet_pos[7].x+sA4,planet_pos[7].y+sC4,planet_pos[7].z+sB4);
 
-				
 			}
-
-
 
 			return xx;
 
 		}
-
-
-
 
 
 		//Carga las texturas de planetas y satelites			
@@ -7558,15 +8010,11 @@
 			dec0[34]=42.91-0.51*Math.cos(N0)-0.04*Math.cos(N6);
 			w0[34]=93.38+320.7654228*d-0.48*sin_N0+0.04*sin_N6;
 
-
-
 			//Charon
 			ra0[35]=132.993;dec0[35]=-6.163;w0[35]=122.695+56.3625225*d;
 
 
 			//Corrección de nutación para La Tierra
-
-			
 			var nut_L=(280.4665+36000.7698*t1)*dtor;
 			var nut_Lp=(218.3165+481267.8813*t1)*dtor;
 			var nut_omega=(125.04452-1934.136261*t1+0.0020708*t1*t1+t1*t1*t1/450000)*dtor;
@@ -7575,7 +8023,6 @@
 			var nut_delta_ecl=(9.2*Math.cos(nut_omega)+0.57*Math.cos(2*nut_L)
 									+0.1*Math.cos(2*nut_Lp)-0.09*Math.cos(2*nut_omega))/3600.0*dtor;
 			
-
 
 			var ra,dec,elon,elat,sin_ra;
 
@@ -7587,14 +8034,11 @@
 				elon=Math.atan2(sin_ra*cosecl+Math.tan(dec)*sinecl,Math.cos(ra));
 				elat=Math.asin(Math.sin(dec)*cosecl-Math.cos(dec)*sinecl*sin_ra);
 
-				
-
 				if (i==3) {
 					elon=elon+nut_delta_phi;
 					elat=elat+nut_delta_ecl;
 				}
 				
-
 				planet_ori1[i]=(90.0-elat/dtor)*dtor;
 				planet_ori2[i]=-(elon/dtor+270.0)*dtor;
 
