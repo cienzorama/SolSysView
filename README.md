@@ -5,6 +5,16 @@ SolSys View is a Solar System visualization program, as its name says, but it's 
 
 https://cienzorama.github.io/SolSysView/
 
+## Version 0.501 [2024 05 21]
+
+- Added a small event list with 10 selected astronomical events
+- Added a option to save a event (data will be lost on reset or reload)
+- Added a option to restore the to initial state after to load a event
+- Solved error in Moon bump texture
+- Solved error in plan404 precession correction
+- Solved error in transit calculation
+- Other Minor optimizations
+
 ## Version 0.405 [2023 07 07]
 
 - Added the ephemeris models plan404 and VSOP87 approximation
