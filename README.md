@@ -5,6 +5,12 @@ SolSys View is a Solar System visualization program, as its name says, but it's 
 
 https://cienzorama.github.io/SolSysView/
 
+## Version 0.550 [2025 06 03]
+
+- Solved errors with Babylon.js last version
+- Added a new skymap texture
+- Other Minor optimizations
+
 ## Version 0.501 [2024 05 21]
 
 - Added a small event list with 10 selected astronomical events
