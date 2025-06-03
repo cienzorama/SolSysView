@@ -6,7 +6,7 @@
 
 		<link rel="icon" type="image/vnd.microsoft.icon" href="favicon.ico">
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-        <title>SolSyS View v0.501 07p 21/05/2024</title>
+        <title>SolSyS View v0.550 2j 03/06/2025</title>
 
         <style>
             html, body {
@@ -43,17 +43,17 @@
 		<script src="https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
 		  
 		<!--- Base de datos de figura de las constelaciones --->
-		<script src="js/stars_db.js"></script>
+		<script src="/js/stars_db.js"></script>
 
 		<!--- PLAN404 --->
-		<script src="js/de404_earth.js"></script>
-		<script src="js/de404_planets.js"></script>
+		<script src="/js/de404_earth.js"></script>
+		<script src="/js/de404_planets.js"></script>
 
 		<!--- VSOP87 Approximation --->
-		<script src="js/vsop87_approx.js"></script>
+		<script src="/js/vsop87_approx.js"></script>
 
 		<!--- Event list --->
-		<script src="js/event_list.js"></script>
+		<script src="/js/event_list.js"></script>
 		
     </head>
 
@@ -115,6 +115,8 @@
 	
 		//Opcion del modo interactivo
 		modo_interactivo=0;
+		cnt01=0;
+		cnt01_val=1;
 
 		//Verificador de modificacion de controles
         //cuando la camara 2 esta activada y el
@@ -145,7 +147,7 @@
 		star_pos=[];
 		read_star_data();
 		update_star_data(jd);
-		constellations_alpha=0.07;
+		constellations_alpha=0.15;
 
 		//Numero total de objetos
 		n_objetos=10+1+2+4+10+5+3+1;
@@ -293,7 +295,7 @@
 		lat_lon_alt=0;
 
 		//Vector de orientacion
-		upv=[];
+		upv=new BABYLON.Vector3(0,1,0);
 
 		//Posicion del lugar de observacion
 		lat_lon_pos=[];
@@ -402,6 +404,7 @@
 				var polys=10;
 				if (ii<=10) polys=40;
 				if (ii==3) polys=200;
+				//if (ii==4) polys=200;
 
 				//..//sph1[ii]=BABYLON.Mesh.CreateSphere("planet_sphere",polys,2*prad,scene,true);
 				sph1[ii]= BABYLON.MeshBuilder.CreateSphere("planet_sphere", {segments:polys, diameter:2*prad,updatable: true}, scene);
@@ -434,7 +437,7 @@
 					sph1_mat[ii].bumpTexture.uScale=-1;
 					sph1_mat[ii].bumpTexture.vScale=-1;
 					
-					if (ii==4) sph1_mat[ii].bumpTexture.level=0.5;
+					if (ii==4) sph1_mat[ii].bumpTexture.level=0.25;
 
 				}
 
@@ -508,9 +511,13 @@
 			//----	
 
 			//--Constelaciones
-			star_lines =BABYLON.MeshBuilder.CreateLines ( "Constellation_lines", {points: star_pos},scene,true);  
-			star_lines.color = new BABYLON.Color3(1, 1, 1);
-			star_lines.alpha=constellations_alpha;
+			star_lines_material=new BABYLON.StandardMaterial("star_line_material", scene);
+			star_lines_material.diffuseColor = new BABYLON.Color3(1,1,1);
+			star_lines_material.ambientColor= new BABYLON.Color3(1,1,1);
+			star_lines_material.useLogarithmicDepth = true;
+			star_lines_material.alpha=constellations_alpha;
+			star_lines =BABYLON.MeshBuilder.CreateLines ( "Constellation_lines", {points: star_pos},scene,true);
+			star_lines.material=star_lines_material;
 			//--------------------
 
 			//--Sombras
@@ -710,14 +717,15 @@
 			
 			//sky_sphere.isPickable=false;				
 
-			var sky_material = new BABYLON.StandardMaterial("sky_sphere_material", scene);
+			sky_material = new BABYLON.StandardMaterial("sky_sphere_material", scene);
 			sky_material.backFaceCulling = false;
 			sky_material.disableLighting = true;
-			sky_material.diffuseTexture = new BABYLON.Texture("images/sky_map_05_1.jpg", scene);
+			//sky_material.diffuseTexture = new BABYLON.Texture("images/sky_map_05_1.jpg", scene);
+			sky_material.diffuseTexture = new BABYLON.Texture("images/starmap_4k.jpg", scene);
 			sky_material.emissiveColor = new BABYLON.Color3(1, 1, 1);
 			sky_material.diffuseTexture.uScale=1;
 			sky_material.diffuseTexture.vScale=-1;
-			//sky_material.useLogarithmicDepth = true;
+			sky_material.useLogarithmicDepth = true;
 			sky_sphere.material = sky_material;
 
 			sky_sphere.rotate(BABYLON.Axis.X, 0.0, BABYLON.Space.WORLD);
@@ -760,6 +768,7 @@
 
 			//--Camara secundaria 
 			camera2=new BABYLON.UniversalCamera("secondary_camera",planet_pos[planet_id]);
+			//camera2=new BABYLON.FreeCamera("secondary_camera",planet_pos[planet_id]);
 			camera2.attachControl(canvas, true);
 			camera2.position=planet_pos[planet_id];
 			camera2.position=lat_lon_pos.subtract(zero);
@@ -767,7 +776,7 @@
 			camera2.minZ=1e-8;
 			//camera2.inputs.attached.pointers.buttons = [0];
 
-			camera2.upVector.copyFrom(upv);
+			//camera2.upVector=upv.subtract(zero);
 			camera2.intertia=0;
 			scene.addCamera(camera2);
 			scene.activeCamera=camera;
@@ -863,6 +872,7 @@
 				glo.addExcludedMesh(fake_sun);
 				glo.addExcludedMesh(sph2);
 				glo.addExcludedMesh(usr_line);
+				glo.addExcludedMesh(star_lines);
 				glo.intensity = 500;
 				//-----------------------
 				
@@ -959,7 +969,7 @@
 
 				//Texto de datos del programa
 				var personal_data_text = new BABYLON.GUI.TextBlock();
-				personal_data_text.text = "SolSyS View v0.501 07p\n © cienzorama@gmail.com, 2024";
+				personal_data_text.text = "SolSyS View v0.550 2j\n © cienzorama@gmail.com, 2025";
 				personal_data_text.color = "white";
 				personal_data_text.fontSize = 10;
 				personal_data_text.top="20px";
@@ -1618,7 +1628,7 @@
 
 			//Boton cerrar dialogo de intervalo
 			var dt_close_button = BABYLON.GUI.Button.CreateSimpleButton("dt_close_button"," Close ");
-			dt_close_button.width = "455px";
+			dt_close_button.width = "200px";
 			dt_close_button.height = "40px";
 			dt_close_button.color = "black";
 			dt_close_button.background = "white";
@@ -1632,6 +1642,35 @@
 				dt_rect.isVisible=0;
 			});
 			dt_rect.addControl(dt_close_button);
+
+
+
+			//Control de latitud
+			var dtdt_slider = new BABYLON.GUI.Slider();
+			dtdt_slider.minimum = 1;
+			dtdt_slider.maximum = 30;
+			dtdt_slider.value = 1;
+			dtdt_slider.step=1;
+			dtdt_slider.height = "20px";
+			dtdt_slider.width = "250px";
+			dtdt_slider.top="213px";
+			dtdt_slider.left="240px";
+			dtdt_slider.background = "white";
+			dtdt_slider.horizontalAlignment = al_left;
+			dtdt_slider.verticalAlignment = al_top;			
+			dtdt_slider.onValueChangedObservable.add(function(value) {
+
+				cnt01_val=dtdt_slider.value*1.0;
+				cnt01=0;
+				actualiza=1;
+
+			});
+			dtdt_slider.onPointerDownObservable.add(function() {sobre_control=1;});
+			dtdt_slider.onPointerUpObservable.add(function() {sobre_control=0;});
+			dt_rect.addControl(dtdt_slider);
+
+
+
 
 			//Botones de animacion hacia adelante y atras en el tiempo
 			var ff_button = BABYLON.GUI.Button.CreateSimpleButton("ff_button",">>");
@@ -2633,7 +2672,8 @@
 			const_trans_slider.onValueChangedObservable.add(function(value) {
 
 				constellations_alpha=value;
-				star_lines.alpha=constellations_alpha; 
+				star_lines_material.alpha=constellations_alpha;
+				//star_lines.alpha=constellations_alpha; 
 			
 			});
 			const_trans_slider.onPointerDownObservable.add(function() {sobre_control=1;});
@@ -4505,7 +4545,8 @@
 
 				//10
 				const_trans_slider.value=constellations_alpha;
-				star_lines.alpha=constellations_alpha; 
+				star_lines_material.alpha=constellations_alpha;
+				//star_lines.alpha=constellations_alpha; 
 
 				//11
 				grs_slider.value=grs_offset_angle;
@@ -5046,8 +5087,12 @@
 				}
 				
 				//Opcion general de animacion
-				if (animacion==1) {
+				cnt01++;
+				if (cnt01==cnt01_val) cnt01=0;
 
+				if (animacion==1 && cnt01==0) {
+
+					
 					jd=jd+dt_multiplier*time_control;
 					fecha=calc_fecha(jd);
 					fecha_local=calc_fecha(jd+utc_zone/24.0)
@@ -5198,7 +5243,7 @@
 				if (render==0 && planet_id==planet_point_id) {
 				
 					c2t=camera2.target.subtract(zero);
-					camera2.upVector.copyFrom(upv);
+					//camera2.upVector=upv.subtract(zero);
 
 					pro_z=BABYLON.Vector3.Dot(c2t,ouz);
 					pro_e=BABYLON.Vector3.Dot(c2t,oue);
@@ -5336,8 +5381,9 @@
 					star_lines.dispose();
 					//update_star_data(jd);
 					star_lines =BABYLON.MeshBuilder.CreateLines ( "Constellation_lines", {points: star_pos},scene,true);  
-					star_lines.color = new BABYLON.Color3(1, 1, 1);
-					star_lines.alpha=constellations_alpha;
+					star_lines.material=star_lines_material;
+					//star_lines.color = new BABYLON.Color3(1, 1, 1);
+					//star_lines.alpha=constellations_alpha;
 
 					usr_line =BABYLON.MeshBuilder.CreateLines ( "usr_line", {points: usr_line_data, instance: usr_line},scene);  
 					usr_line.isVisible=usr_line_visible;
@@ -5523,7 +5569,7 @@
 							camera2.target=c2t.subtract(zero);
 						}
 						
-						camera2.upVector.copyFrom(upv);
+						//camera2.upVector=upv.subtract(zero);
 						
 					}
 
@@ -5672,7 +5718,9 @@
 
 					trastoca_luces();
 
+					//console.log(camera2.upVector);
 					render=0;
+
 				}
 
 				/*
@@ -5878,11 +5926,15 @@
 				if (pointerInfo.event.buttons==1 && planet_id==planet_point_id) {
 
 					camera2.inputs.attached.mouse.detachControl();
+					//camera2.upVector=upv.subtract(zero);
 					atc01=1;
+					//console.log("puta");
 
 					if (pointerInfo.event.movementX!=0 || pointerInfo.event.movementY!=0) {
 
-						c2tt=camera2.target;							
+						var c2tt=(camera2.target).subtract(zero);
+						//upv=ouz.subtract(zero);
+						//camera2.upVector=upv.subtract(zero);						
 
 						var pro_z1=c2tt.x*ouz.x+c2tt.y*ouz.y+c2tt.z*ouz.z;
 						var pro_e1=c2tt.x*oue.x+c2tt.y*oue.y+c2tt.z*oue.z;
@@ -5911,8 +5963,11 @@
 						c2tt.y=pro_z1*ouz.y+pro_e1*oue.y+pro_n1*oun.y;
 						c2tt.z=pro_z1*ouz.z+pro_e1*oue.z+pro_n1*oun.z;
 
-						camera2.target=c2tt;
-						camera2.speed=0;
+						camera2.target=c2tt.subtract(zero);
+						//camera2.upVector=ouz.subtract(zero);
+						//camera2.speed=0;
+						//camera2.intertia=0;
+						//console.log(camera2.upVector);
 						
 						if (head_coordinates==1) {
 							var vcam=camera2.target.subtract(camera2.position);
@@ -5966,12 +6021,25 @@
 				if (pointerInfo.event.buttons==0 && planet_id==planet_point_id && atc01==1) {
 
 					camera2.inputs.attachInput(camera2.inputs.attached.mouse);
+					//upv=ouz.subtract(zero);
+					//camera2.upVector=upv.subtract(zero);
+					//console.log(camera2.upVector);
 					atc01=0;
 
 				}
-				
+			
+				//camera2.upVector=ouz.subtract(zero);
 			});
 
+
+			camera2.onViewMatrixChangedObservable.add((pointerInfo) => {
+				//console.log(camera2.upVector);
+				//camera2.upVector=upv.subtract(zero);
+				//console.log(camera2.upVector);
+				camera2.upVector=upv.subtract(zero);
+				//console.log(camera2.upVector);
+
+			});
             return scene;
         };
 
@@ -6624,11 +6692,14 @@
 
 			var d4=Math.sqrt(x4*x4+y4*y4+z4*z4);
 			x4/=d4;y4/=d4;z4/=d4;
+			console.log(planet_w[pid],planet_ori1[pid],planet_ori2[pid]);
 			upv=new BABYLON.Vector3(x4,z4,y4);
+			//upv=upv.subtract(zero);
 			//upv2=upv.multiplyByFloats(1,1,1);
-			upv.normalize();
+			//upv.normalize();
+			console.log(upv);
 						
-			uzx=x4*1;uzy=y4*1;uzz=z4*1;
+			uzx=x4*1.0;uzy=y4*1.0;uzz=z4*1.0;
 			
 			x1 = -radio1*cos_lat*Math.sin(lon);
 			y1 = radio1*cos_lat*Math.cos(lon);
@@ -6642,7 +6713,7 @@
 			d4=Math.sqrt(x4*x4+y4*y4+z4*z4);
 			x4/=d4;y4/=d4;z4/=d4;				
 
-			uex=x4*1;uey=y4*1;;uez=z4*1;
+			uex=x4*1.0;uey=y4*1.0;uez=z4*1.0;
 
 			unx=(uzy*uez-uey*uzz);
 			uny=-(uzx*uez-uex*uzz);
@@ -6660,7 +6731,8 @@
 			oun.y=unz*1.0;
 			oun.z=uny*1.0;
 
-			if (ori_equat==1) {
+			/*
+			if (0) {
 
 				x1=0;y1=0;z1=1;
 
@@ -6704,6 +6776,7 @@
 				oun.z=uny*1.0;
 
 			}
+			*/
 
 			var lhc=0;
 			var pr01=planet_rad[pid]*i_ua_km*2;
@@ -8621,7 +8694,7 @@
 
 			//bump
 			planet_text_bump[1]="images/mercury_bump_02.jpg"; //corregido
-			planet_text_bump[4]="images/moon_bumpmap_04.jpg"; //corregido
+			planet_text_bump[4]="images/moon_bumpmap_05.jpg"; //corregido
 			planet_text_bump[5]="images/mars_bump_04.jpg"; //corregido
 			planet_text_bump[11]="images/phobos_bump_01.jpg"; //corregido
 
@@ -8980,10 +9053,13 @@
 					elat=elat+nut_delta_ecl;
 				}
 				
+				elat=elat%(2*Math.PI);
+				elon=elon%(2*Math.PI);
 				planet_ori1[i]=(90.0-elat/dtor)*dtor;
 				planet_ori2[i]=-(elon/dtor+270.0)*dtor;
 
-				planet_w[i]=-(w0[i]+180)*dtor;
+				w0[i]=w0[i]%(360.0);
+				planet_w[i]=-(w0[i]+180.0)*dtor;
 
 			}
 
