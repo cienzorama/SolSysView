@@ -43,17 +43,17 @@
 		<script src="https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
 		  
 		<!--- Base de datos de figura de las constelaciones --->
-		<script src="js/stars_db.js"></script>
+		<script src="/js/stars_db.js"></script>
 
 		<!--- PLAN404 --->
-		<script src="js/de404_earth.js"></script>
-		<script src="js/de404_planets.js"></script>
+		<script src="/js/de404_earth.js"></script>
+		<script src="/js/de404_planets.js"></script>
 
 		<!--- VSOP87 Approximation --->
-		<script src="js/vsop87_approx.js"></script>
+		<script src="/js/vsop87_approx.js"></script>
 
 		<!--- Event list --->
-		<script src="js/event_list.js"></script>
+		<script src="/js/event_list.js"></script>
 		
     </head>
 
@@ -5930,7 +5930,7 @@
 					atc01=1;
 					//console.log("puta");
 
-					if (pointerInfo.event.movementX!=0 || pointerInfo.event.movementY!=0) {
+					if (/*pointerInfo.event.movementX!=0 || pointerInfo.event.movementY!=0*/ 1) {
 
 						var c2tt=(camera2.target).subtract(zero);
 						//upv=ouz.subtract(zero);
@@ -6692,12 +6692,13 @@
 
 			var d4=Math.sqrt(x4*x4+y4*y4+z4*z4);
 			x4/=d4;y4/=d4;z4/=d4;
-			//console.log(planet_w[pid],planet_ori1[pid],planet_ori2[pid]);
+			
 			upv=new BABYLON.Vector3(x4,z4,y4);
-			//upv=upv.subtract(zero);
-			//upv2=upv.multiplyByFloats(1,1,1);
-			//upv.normalize();
-			//console.log(upv);
+			
+			//Esta tontería es para evitar que la cámara 2
+			//ignore la oriencación dada por la opción upVector
+			//si el vector usado tiene un módulo exactamente igual a 1
+			upv.scaleInPlace(0.9999999999);
 						
 			uzx=x4*1.0;uzy=y4*1.0;uzz=z4*1.0;
 			
@@ -6719,20 +6720,11 @@
 			uny=-(uzx*uez-uex*uzz);
 			unz=(uzx*uey-uex*uzy);
 
-			ouz.x=uzx*1.0;
-			ouz.y=uzz*1.0;
-			ouz.z=uzy*1.0;
-
-			oue.x=uex*1.0;
-			oue.y=uez*1.0;
-			oue.z=uey*1.0;
-		
-			oun.x=unx*1.0;
-			oun.y=unz*1.0;
-			oun.z=uny*1.0;
-
-			/*
-			if (0) {
+			ouz=new BABYLON.Vector3(uzx,uzz,uzy);
+			oue=new BABYLON.Vector3(uex,uez,uey);
+			oun=new BABYLON.Vector3(unx,unz,uny);
+			
+			if (ori_equat==1) {
 
 				x1=0;y1=0;z1=1;
 
@@ -6744,7 +6736,8 @@
 				x4/=d4;y4/=d4;z4/=d4;
 				upv=new BABYLON.Vector3(x4,z4,y4);
 
-				upv.normalize();
+				//upv.normalize();
+				upv.scaleInPlace(0.9999999999);
 						
 				uzx=x4*1;uzy=y4*1;uzz=z4*1;
 
@@ -6776,7 +6769,7 @@
 				oun.z=uny*1.0;
 
 			}
-			*/
+			
 
 			var lhc=0;
 			var pr01=planet_rad[pid]*i_ua_km*2;
