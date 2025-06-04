@@ -7,8 +7,10 @@ https://cienzorama.github.io/SolSysView/
 
 ## Version 0.550 [2025 06 03]
 
-- Solved errors with Babylon.js last version
-- Added a new skymap texture
+- Fixed (a lot of) problems with latest versions of babylon.js
+- Solved error in camera orientation in from the planet view
+- Added (a bit) more detail to satellite geometry
+- Added a new skymap texture (working on option to select different textures)
 - Other Minor optimizations
 
 ## Version 0.501 [2024 05 21]
